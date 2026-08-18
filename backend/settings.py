@@ -60,7 +60,7 @@ INSTALLED_APPS = [
     "notifications",
     "churches",
     "classes",
-    "courses",
+    "lessons",
     "communications",
     "events",
     "roles",

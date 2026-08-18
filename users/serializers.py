@@ -88,3 +88,4 @@ class EnhancedChangePasswordSerializer(serializers.Serializer):
             })
         
         return data
+    

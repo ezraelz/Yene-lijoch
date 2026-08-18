@@ -14,7 +14,7 @@ urlpatterns = [
     path('verify-reset-code/', views.VerifyResetCodeView.as_view(), name='verify-reset-code'),
     path('reset-password/', views.ResetPasswordView.as_view(), name='reset-password'),
 
-    path('user-profile/', ProfileView.as_view(), name='profileView'),
+    path('users/me/', ProfileView.as_view(), name='profileView'),
     path('staff-view/', StaffView.as_view(), name='staffView'),
 
     path('api/token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
