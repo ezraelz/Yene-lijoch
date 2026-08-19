@@ -64,6 +64,7 @@ INSTALLED_APPS = [
     "lessons",
     "events",
     "roles",
+    "reports",
     "students",
     "teachers",
     "parents",
