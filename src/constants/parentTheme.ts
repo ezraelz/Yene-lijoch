@@ -1,0 +1,16 @@
+export const ParentColors = {
+  bg: "#FFF9F1",
+  text: "#25233A",
+  muted: "#77758A",
+  primary: "#6C63FF",
+  primarySoft: "#F0EDFF",
+  accent: "#F28C28",
+  accentSoft: "#FFF1E4",
+  card: "#FFFFFF",
+  border: "#E8E5EF",
+  success: "#2BB673",
+  successSoft: "#E8F8F0",
+  danger: "#E5484D",
+  info: "#3B82F6",
+  infoSoft: "#EAF2FF",
+} as const;

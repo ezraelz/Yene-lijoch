@@ -1,5 +1,5 @@
 import { Stack } from "expo-router";
 
-export default function TeacherLayout() {
+export default function EventsLayout() {
   return <Stack screenOptions={{ headerShown: false }} />;
 }
