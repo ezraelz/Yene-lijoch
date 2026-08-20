@@ -98,6 +98,7 @@ REST_FRAMEWORK = {
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
+    "http://localhost:8081",
 ]
 
 ROOT_URLCONF = 'backend.urls'

@@ -1,41 +1,36 @@
 from django.urls import path
-
 from .views import (
-    DashboardReportAPIView,
+    ReportsDashboardAPIView,
     StudentReportAPIView,
     TeacherReportAPIView,
     ParentReportAPIView,
     AttendanceReportAPIView,
     StudentAttendanceReportAPIView,
+    AttendanceReportDownloadAPIView,
 )
 
 
 urlpatterns = [
-
     path(
         "dashboard/",
-        DashboardReportAPIView.as_view(),
-        name="dashboard-report"
+        ReportsDashboardAPIView.as_view(),
+        name="reports-dashboard"
     ),
-
     path(
         "students/",
         StudentReportAPIView.as_view(),
         name="student-report"
     ),
-
     path(
         "teachers/",
         TeacherReportAPIView.as_view(),
         name="teacher-report"
     ),
-
     path(
         "parents/",
         ParentReportAPIView.as_view(),
         name="parent-report"
     ),
-
     path(
         "attendance/",
         AttendanceReportAPIView.as_view(),
@@ -45,5 +40,10 @@ urlpatterns = [
         "attendance/students/",
         StudentAttendanceReportAPIView.as_view(),
         name="student-attendance-report"
+    ),
+    path(
+        "attendance/download/",
+        AttendanceReportDownloadAPIView.as_view(),
+        name="student-attendance-download"
     ),
 ]

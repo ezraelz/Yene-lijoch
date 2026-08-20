@@ -11,8 +11,6 @@ from django.contrib.auth import authenticate, login,logout
 from django.contrib import messages
 from django.utils import timezone
 from datetime import timedelta
-from django.urls import reverse
-from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import NotFound
 from rest_framework_simplejwt.views import TokenObtainPairView
 from roles.models import Role
@@ -84,6 +82,8 @@ class ProfileDetailView(APIView):
             return Response(status=status.HTTP_400_BAD_REQUEST)
 
 class LoginView(APIView): 
+    permission_classes = [AllowAny]
+
     def post(self, request): 
         username = request.data.get('username') 
         password = request.data.get('password') 
