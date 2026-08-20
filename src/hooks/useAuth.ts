@@ -105,7 +105,7 @@ export function useAuth(): AuthContext {
   // Fetch current user from API
   const fetchCurrentUser = useCallback(async (): Promise<User | null> => {
     try {
-      const response = await api.get("/user/");
+      const response = await api.get("/users/me/");
       return response.data;
     } catch (error) {
       console.error("Failed to fetch user:", error);

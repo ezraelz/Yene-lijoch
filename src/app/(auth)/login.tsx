@@ -7,45 +7,82 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import { useAuth } from "@/hooks/useAuth";
 
-export default function LoginScreen() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
+// Define error response type
+interface ErrorResponse {
+  response?: {
+    status?: number;
+    data?: {
+      detail?: string;
+    };
+  };
+}
 
-  const handleLogin = () => {
-    if (!email || !password) {
+export default function LoginScreen(): React.ReactElement {
+  const [username, setUsername] = useState<string>("");
+  const [password, setPassword] = useState<string>("");
+  const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  
+  const { login } = useAuth();
+
+  const handleLogin = async (): Promise<void> => {
+    // Validate input
+    if (!username || !password) {
       Alert.alert(
-        "Missing information",
-        "Please enter your email and password."
+        "Missing Information",
+        "Please enter your username and password."
       );
       return;
     }
 
-    // Temporary UI/demo login system
-    if (email === "parent@test.com") {
-      router.replace("/parent");
+    // Validate username (at least 3 characters)
+    if (username.length < 3) {
+      Alert.alert(
+        "Invalid Username",
+        "Username must be at least 3 characters long."
+      );
       return;
     }
 
-    if (email === "teacher@test.com") {
-      router.replace("/teacher");
-      return;
-    }
+    setIsLoading(true);
 
-    Alert.alert(
-      "Demo Account",
-      "Use parent@test.com or teacher@test.com"
-    );
+    try {
+      // Use the login function from the auth hook
+      await login(username, password, false);
+      // The hook will handle navigation automatically
+    } catch (error: unknown) {
+      // Type guard to check if error has response property
+      const err = error as ErrorResponse;
+      
+      // Error is already handled by the hook with toast
+      // Show a fallback alert for any unhandled errors
+      if (err.response?.status === 401) {
+        Alert.alert(
+          "Login Failed",
+          "Invalid username or password. Please try again."
+        );
+      } else if (err.response?.data?.detail) {
+        Alert.alert("Login Failed", err.response.data.detail);
+      } else {
+        Alert.alert(
+          "Login Failed",
+          "An unexpected error occurred. Please try again."
+        );
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-
         {/* Header */}
         <Text style={styles.title}>Welcome Back 👋</Text>
 
@@ -53,12 +90,12 @@ export default function LoginScreen() {
           Login to your Yene Lijoch account
         </Text>
 
-        {/* Email */}
-        <Text style={styles.label}>Email</Text>
+        {/* Username */}
+        <Text style={styles.label}>Username</Text>
 
         <View style={styles.inputWrapper}>
           <Ionicons
-            name="mail-outline"
+            name="person-outline"
             size={20}
             color="#77758A"
             style={styles.inputIcon}
@@ -66,13 +103,13 @@ export default function LoginScreen() {
 
           <TextInput
             style={styles.input}
-            placeholder="Enter your email"
+            placeholder="Enter your username"
             placeholderTextColor="#999"
-            keyboardType="email-address"
             autoCapitalize="none"
             autoCorrect={false}
-            value={email}
-            onChangeText={setEmail}
+            value={username}
+            onChangeText={setUsername}
+            editable={!isLoading}
           />
         </View>
 
@@ -94,18 +131,16 @@ export default function LoginScreen() {
             secureTextEntry={!showPassword}
             value={password}
             onChangeText={setPassword}
+            editable={!isLoading}
           />
 
           <TouchableOpacity
             onPress={() => setShowPassword(!showPassword)}
             style={styles.eyeButton}
+            disabled={isLoading}
           >
             <Ionicons
-              name={
-                showPassword
-                  ? "eye-off-outline"
-                  : "eye-outline"
-              }
+              name={showPassword ? "eye-off-outline" : "eye-outline"}
               size={21}
               color="#77758A"
             />
@@ -115,46 +150,43 @@ export default function LoginScreen() {
         {/* Forgot Password */}
         <TouchableOpacity
           style={styles.forgot}
-          onPress={() =>
-            router.push("/(auth)/forgot-password")
-          }
+          onPress={() => router.push("/(auth)/forgot-password")}
+          disabled={isLoading}
         >
-          <Text style={styles.forgotText}>
-            Forgot Password?
-          </Text>
+          <Text style={styles.forgotText}>Forgot Password?</Text>
         </TouchableOpacity>
 
         {/* Login Button */}
         <TouchableOpacity
-          style={styles.button}
+          style={[styles.button, isLoading && styles.buttonDisabled]}
           onPress={handleLogin}
           activeOpacity={0.8}
+          disabled={isLoading}
         >
-          <Text style={styles.buttonText}>Login</Text>
-
-          <Ionicons
-            name="arrow-forward"
-            size={20}
-            color="#FFFFFF"
-          />
+          {isLoading ? (
+            <ActivityIndicator color="#FFFFFF" size="small" />
+          ) : (
+            <>
+              <Text style={styles.buttonText}>Login</Text>
+              <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
+            </>
+          )}
         </TouchableOpacity>
 
         {/* Signup */}
         <TouchableOpacity
           onPress={() => router.push("/(auth)/signup")}
+          disabled={isLoading}
         >
           <Text style={styles.signup}>
             Don't have an account?{" "}
-            <Text style={styles.signupBold}>
-              Sign Up
-            </Text>
+            <Text style={styles.signupBold}>Sign Up</Text>
           </Text>
         </TouchableOpacity>
-
       </View>
     </SafeAreaView>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -232,6 +264,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     flexDirection: "row",
     gap: 10,
+  },
+
+  buttonDisabled: {
+    opacity: 0.7,
   },
 
   buttonText: {
