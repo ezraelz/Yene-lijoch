@@ -56,7 +56,6 @@ class StaffView(APIView):
         serializer = UserSerializer(staff, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-
 class ProfileDetailView(APIView):
     def get(self, request, pk):
         profile = Profile.objects.get(id=pk)
@@ -207,12 +206,13 @@ class EnhancedChangePasswordView(APIView):
         else:
             ip = request.META.get('REMOTE_ADDR')
         return ip
-    
-def logout_view(request):
-    logout(request)
-    messages.success(request, 'Logged out successfully')
-    return redirect('login')
 
+class LogoutView(APIView):   
+    permission_classes = [IsAuthenticated] 
+    def post(self, request):
+        logout(request)
+        messages.success(request, 'Logged out successfully')
+        return redirect('login')
 
 class SendResetCodeView(APIView):
     permission_classes = [AllowAny]
@@ -490,4 +490,5 @@ class ResetPasswordView(APIView):
                 recipient_list=[email],
                 fail_silently=False,
             )
-            
+
+        

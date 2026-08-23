@@ -129,3 +129,4 @@ class ChurchDetailAPIView(APIView):
             {"detail": "Church deleted successfully."},
             status=status.HTTP_204_NO_CONTENT
         )
+    

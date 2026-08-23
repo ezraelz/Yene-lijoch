@@ -9,6 +9,7 @@ class ChurchAdmin(admin.ModelAdmin):
         'name',
         'phone',
         'email',
+        'status',
         'created_at',
     )
 
@@ -17,6 +18,7 @@ class ChurchAdmin(admin.ModelAdmin):
         'address',
         'phone',
         'email',
+        'status',
     )
 
     ordering = ('-created_at',)
