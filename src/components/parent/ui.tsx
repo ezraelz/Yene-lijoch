@@ -42,12 +42,14 @@ export function TopBar({
   showBell = true,
   unread = 0,
   onBack,
+  bellHref = "/parent/notifications",
 }: {
   title: string;
   subtitle?: string;
   showBell?: boolean;
   unread?: number;
   onBack?: () => void;
+  bellHref?: string;
 }) {
   return (
     <View style={styles.topBar}>
@@ -65,7 +67,7 @@ export function TopBar({
       {showBell ? (
         <TouchableOpacity
           style={styles.bell}
-          onPress={() => router.push("/parent/notifications")}
+          onPress={() => router.push(bellHref as any)}
         >
           <Ionicons name="notifications-outline" size={22} color={C.text} />
           {unread > 0 ? (
@@ -119,7 +121,15 @@ export function SectionHeader({
   );
 }
 
-export function Avatar({ child, size = 46 }: { child: Child; size?: number }) {
+export function PersonAvatar({
+  initials,
+  color,
+  size = 46,
+}: {
+  initials: string;
+  color: string;
+  size?: number;
+}) {
   return (
     <View
       style={[
@@ -128,14 +138,18 @@ export function Avatar({ child, size = 46 }: { child: Child; size?: number }) {
           width: size,
           height: size,
           borderRadius: size / 2,
-          backgroundColor: child.avatarColor,
+          backgroundColor: color,
         },
       ]}
     >
-      <Text style={[styles.avatarText, { fontSize: size * 0.34 }]}>
-        {child.initials}
-      </Text>
+      <Text style={[styles.avatarText, { fontSize: size * 0.34 }]}>{initials}</Text>
     </View>
+  );
+}
+
+export function Avatar({ child, size = 46 }: { child: Child; size?: number }) {
+  return (
+    <PersonAvatar initials={child.initials} color={child.avatarColor} size={size} />
   );
 }
 
