@@ -1,5 +1,5 @@
 from django.shortcuts import render,redirect
-from .serializers import UserSerializer,UserProfileUpdateSerializer,CustomTokenObtainPairSerializer
+from .serializers import UserSerializer,UserProfileUpdateSerializer,CustomTokenObtainPairSerializer,UserCreateSerializer
 from rest_framework import viewsets,status
 from .models import Profile
 from django.contrib.auth.decorators import login_required
@@ -24,12 +24,23 @@ from django.core.cache import cache
 import json
 
 class userView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminUser]
 
     def get(self, request):
         users = Profile.objects.all()
         serializer = UserSerializer(users, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+class UserCreateView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = UserCreateSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
     
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
@@ -66,10 +77,11 @@ class ProfileDetailView(APIView):
     def put(self, request, pk):
         profile = Profile.objects.get(id=pk)
 
-        serializer = UserSerializer(profile, data=request.data, partial=True)
+        serializer = UserProfileUpdateSerializer(profile, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
+        print(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     def delete(self, request, pk):

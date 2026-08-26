@@ -15,10 +15,10 @@ class ProfileAdmin(UserAdmin):
                        'username','age', 'sex', 'email',
                          'role','last_seen','profile_image',
                            'is_staff', 'is_superuser', 'contact',
-                           'address', 'bio')
+                           'address', 'bio', 'password')
         }),
     )
-    readonly_fields = ['last_seen']
+    readonly_fields = ['last_seen', 'password']
     search_fields = ('email', 'username')
     ordering = ('email',)
 

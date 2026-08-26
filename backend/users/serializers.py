@@ -7,6 +7,7 @@ import re
 
 class UserSerializer(serializers.ModelSerializer):
     role_name = serializers.CharField(source="role.role_name", read_only=True)
+
     class Meta:
         model = Profile
         fields = ["id",'sex', 'age', "first_name",
@@ -15,6 +16,33 @@ class UserSerializer(serializers.ModelSerializer):
                   "is_active", "is_staff", "is_superuser",
                   'profile_image', 'address', 'created_at',
                   'last_seen', 'bio']
+        read_only_fields = ["id", "is_staff",
+                            "is_superuser",'created_at',
+                            'last_seen']
+
+
+class UserCreateSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True)
+
+    class Meta:
+        model = Profile
+        fields = [
+            'sex', 'age', "first_name",
+            "last_name","username", 'date_of_birth',
+            "role", "email", 'contact',"is_active", 
+            "is_staff", "is_superuser",'profile_image', 
+            'address', 'created_at',
+            'last_seen', 'bio', 'password'
+        ]
+
+    def create(self, validated_data):
+        password = validated_data.pop("password")
+
+        user = Profile(**validated_data)
+        user.set_password(password)
+        user.save()
+
+        return user
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer): 
     username_field = 'username' 
@@ -27,7 +55,11 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 class UserProfileUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Profile
-        fields = ['username', 'email', 'profile_image']
+        fields = ['sex', 'age', "first_name",
+                  "last_name","username", 'date_of_birth',
+                  "role", "email", 'contact',
+                  "is_active", "is_staff", "is_superuser",
+                  'profile_image', 'address', 'bio',]     
 
 
 class EnhancedChangePasswordSerializer(serializers.Serializer):
