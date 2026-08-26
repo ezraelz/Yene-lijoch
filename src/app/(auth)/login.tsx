@@ -12,6 +12,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useAuth } from "@/hooks/useAuth";
+import { useRoleNavigation } from "@/hooks/useRoleNavigation";
 
 // Define error response type
 interface ErrorResponse {
@@ -24,6 +25,7 @@ interface ErrorResponse {
 }
 
 export default function LoginScreen(): React.ReactElement {
+  const { navigateBasedOnRole, getDashboardRoute } = useRoleNavigation()
   const [username, setUsername] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [showPassword, setShowPassword] = useState<boolean>(false);
@@ -55,6 +57,8 @@ export default function LoginScreen(): React.ReactElement {
     try {
       // Use the login function from the auth hook
       await login(username, password, false);
+      navigateBasedOnRole(); // Navigate based on role
+      getDashboardRoute();
       // The hook will handle navigation automatically
     } catch (error: unknown) {
       // Type guard to check if error has response property

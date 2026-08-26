@@ -100,7 +100,7 @@ export function useAuth(): AuthContext {
     }, 60000); // Check every minute
 
     return () => clearInterval(interval);
-  }, [state.isAuthenticated, state.accessToken]);
+  }, []);
 
   // Fetch current user from API
   const fetchCurrentUser = useCallback(async (): Promise<User | null> => {

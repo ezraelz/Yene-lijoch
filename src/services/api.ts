@@ -1,7 +1,7 @@
 import axios from "axios";
 import { jwtDecode } from "jwt-decode";
 
-export const API_BASE = process.env.DJANGO_API_URL || "http://localhost:8000";
+export const API_BASE = process.env.DJANGO_API_URL || "http://127.0.0.1:8000";
 
 // Create a server-side API client (no localStorage)
 export const serverApi = axios.create({
