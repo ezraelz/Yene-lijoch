@@ -28,11 +28,15 @@ class ProfileManager(BaseUserManager):
         return self.create_user(username=username, email=email, password=password, **extra_fields)
 
 class Profile(AbstractBaseUser, PermissionsMixin):
+    class SexChoices(models.TextChoices):
+        MALE = 'male', 'Male'
+        FEMALE = 'female', 'Female'
+
     first_name = models.CharField("First Name", max_length=150, null=True, blank=True)
     last_name = models.CharField("Last Name", max_length=150, null=True, blank=True)
     username = models.CharField("Username", max_length=50, unique=True, null=True, blank=True)
     age = models.IntegerField(blank=True, null=True)
-    sex = models.CharField('Sex', max_length=10, blank=True, null=True)
+    sex = models.CharField('Sex', max_length=10, blank=True, null=True, choices=SexChoices.choices, default=SexChoices.MALE)
     email = models.EmailField("Email", max_length=254, unique=True, null=True, blank=True)
     contact = models.CharField('Contact', max_length=100, null=True, blank=True)
     address = models.CharField('Address', blank=True, null=True)
@@ -42,9 +46,12 @@ class Profile(AbstractBaseUser, PermissionsMixin):
     role = models.ForeignKey(Role, verbose_name="Role", on_delete=models.SET_NULL, blank=True, null=True)
     last_seen = models.DateField("Last seen", auto_now=True, null=True, blank=True)
     created_at = models.DateField("Created at", auto_now_add=True, null=True, blank=True)
+    deactivated_at = models.DateField("Created at", auto_now_add=True, null=True, blank=True)
+    deactivation_reason = models.CharField('Deactivation reason', blank=True, null=True)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     is_superuser = models.BooleanField(default=False, blank=True, null=True)
+    is_agreed_to_terms = models.BooleanField(default=False, blank=True, null=True)
 
     USERNAME_FIELD = "username"
     REQUIRED_FIELDS = ["email",]
@@ -104,4 +111,3 @@ class PasswordHistory(models.Model):
     
     def check_password(self, raw_password):
         return check_password(raw_password, self.password)
-    

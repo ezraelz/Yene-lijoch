@@ -15,7 +15,7 @@ class ProfileAdmin(UserAdmin):
                        'username','age', 'sex', 'email',
                          'role','last_seen','profile_image',
                            'is_staff', 'is_superuser', 'contact',
-                           'address', 'bio', 'password')
+                           'is_active','address', 'bio', 'password')
         }),
     )
     readonly_fields = ['last_seen', 'password']

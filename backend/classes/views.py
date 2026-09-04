@@ -27,7 +27,7 @@ class ClassRoomListCreateAPIView(APIView):
         classes = (
             ClassRoom.objects
             .select_related(
-                "church",
+                "organization",
                 "teacher__profile",
                 "course",
             )
@@ -94,7 +94,7 @@ class ClassRoomDetailAPIView(APIView):
             return (
                 ClassRoom.objects
                 .select_related(
-                    "church",
+                    "organization__name",
                     "teacher__profile",
                     "course",
                 )

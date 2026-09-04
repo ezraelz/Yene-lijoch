@@ -1,5 +1,5 @@
 from parents.models import Parent
-from .common import get_church_for_user
+from .common import get_organization_for_user
 
 
 def get_parent_report(user):
@@ -7,13 +7,13 @@ def get_parent_report(user):
     Generate a parent summary report.
     """
 
-    church = get_church_for_user(user)
+    organization = get_organization_for_user(user)
 
-    if not church:
+    if not organization:
         return None
 
     parents = Parent.objects.filter(
-        church=church
+        organization=organization
     ).prefetch_related(
         "student",
         "profile"

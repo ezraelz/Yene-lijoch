@@ -1,13 +1,13 @@
 from rest_framework import serializers
 
 from .models import Event
-from churches.models import Church
+from organizations.models import Organization
 
 
 class EventSerializer(serializers.ModelSerializer):
 
-    church_name = serializers.CharField(
-        source="church.name",
+    organization_name = serializers.CharField(
+        source="organization.name",
         read_only=True
     )
 
@@ -16,8 +16,8 @@ class EventSerializer(serializers.ModelSerializer):
 
         fields = [
             "id",
-            "church",
-            "church_name",
+            "organization",
+            "organization_name",
             "title",
             "description",
             "event_type",
@@ -43,7 +43,7 @@ class EventEditSerializer(serializers.ModelSerializer):
         model = Event
 
         fields = [
-            "church",
+            "organization",
             "title",
             "description",
             "event_type",
@@ -102,7 +102,7 @@ class EventCreateSerializer(serializers.ModelSerializer):
         model = Event
 
         fields = [
-            "church",
+            "organization",
             "title",
             "description",
             "event_type",

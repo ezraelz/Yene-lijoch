@@ -8,7 +8,7 @@ class AnnouncementAdmin(admin.ModelAdmin):
 
     list_display = (
         "title",
-        "church",
+        "organization",
         "audience",
         "priority",
         "is_published",
@@ -19,7 +19,7 @@ class AnnouncementAdmin(admin.ModelAdmin):
     )
 
     list_filter = (
-        "church",
+        "organization",
         "audience",
         "priority",
         "is_published",
@@ -28,7 +28,7 @@ class AnnouncementAdmin(admin.ModelAdmin):
     search_fields = (
         "title",
         "content",
-        "church__name",
+        "organization__name",
     )
 
     readonly_fields = (

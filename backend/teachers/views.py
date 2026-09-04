@@ -27,7 +27,7 @@ class TeacherListCreateAPIView(APIView):
     def get(self, request):
         teachers = (
             Teacher.objects
-            .select_related("profile", "church")
+            .select_related("profile", "organization")
             .prefetch_related("subject")
             .order_by("id")
         )
@@ -82,7 +82,7 @@ class TeacherDetailAPIView(APIView):
         try:
             return (
                 Teacher.objects
-                .select_related("profile", "church")
+                .select_related("profile", "organization")
                 .prefetch_related("subject")
                 .get(pk=pk)
             )
@@ -195,3 +195,4 @@ class TeacherDetailAPIView(APIView):
             },
             status=status.HTTP_204_NO_CONTENT
         )
+    

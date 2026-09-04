@@ -7,8 +7,8 @@ from .models import Announcement
 class AnnouncementSerializer(serializers.ModelSerializer):
 
     created_by_name = serializers.SerializerMethodField()
-    church_name = serializers.CharField(
-        source="church.name",
+    organization_name = serializers.CharField(
+        source="organization.name",
         read_only=True
     )
 
@@ -16,8 +16,8 @@ class AnnouncementSerializer(serializers.ModelSerializer):
         model = Announcement
         fields = [
             "id",
-            "church",
-            "church_name",
+            "organization",
+            "organization_name",
             "title",
             "content",
             "audience",
@@ -36,7 +36,7 @@ class AnnouncementSerializer(serializers.ModelSerializer):
             "created_by",
             "created_at",
             "updated_at",
-            "church_name",
+            "organization_name",
             "created_by_name",
         ]
 

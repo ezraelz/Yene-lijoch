@@ -15,16 +15,16 @@ class AnnouncementListCreateAPIView(APIView):
     def get(self, request):
 
         announcements = Announcement.objects.select_related(
-            "church",
+            "organization",
             "created_by"
         )
 
         if hasattr(request.user, "profile"):
-            church = request.user.profile.church
+            organization = request.user.profile.organization
 
-            if church:
+            if organization:
                 announcements = announcements.filter(
-                    church=church
+                    organization=organization
                 )
 
         audience = request.query_params.get("audience")
@@ -67,12 +67,12 @@ class AnnouncementListCreateAPIView(APIView):
 
         if serializer.is_valid():
 
-            church = None
+            organization = None
 
             if hasattr(request.user, "profile"):
-                church = request.user.profile.church
+                organization = request.user.profile.organization
 
-            if not church:
+            if not organization:
                 return Response(
                     {
                         "detail": "Your account is not associated with a church."
@@ -81,7 +81,7 @@ class AnnouncementListCreateAPIView(APIView):
                 )
 
             announcement = serializer.save(
-                church=church,
+                organization=organization,
                 created_by=request.user
             )
 
@@ -104,7 +104,7 @@ class AnnouncementDetailAPIView(APIView):
 
         try:
             announcement = Announcement.objects.select_related(
-                "church",
+                "organization",
                 "created_by"
             ).get(pk=pk)
         except Announcement.DoesNotExist:
@@ -114,9 +114,9 @@ class AnnouncementDetailAPIView(APIView):
         # from their church
         if hasattr(request.user, "profile"):
 
-            user_church = request.user.profile.church
+            user_organization = request.user.profile.organization
 
-            if announcement.church != user_church:
+            if announcement.organization != user_organization:
                 return None
 
         return announcement

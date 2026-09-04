@@ -1,15 +1,15 @@
 from classes.models import ClassRoom
-from .common import get_church_for_user
+from .common import get_organization_for_user
 
 def get_classroom_report(user):
 
-    church = get_church_for_user(user)
+    organization = get_organization_for_user(user)
 
-    if not church:
+    if not organization:
         return None
 
     classrooms = ClassRoom.objects.filter(
-        church=church
+        organization=organization
     ).select_related(
         "teacher__profile"
     ).prefetch_related(

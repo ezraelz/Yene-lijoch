@@ -9,7 +9,7 @@ class ClassRoom(models.Model):
         ("completed", "Completed"),
     ]
 
-    church = models.ForeignKey( "churches.Church", on_delete=models.CASCADE, related_name="classes")
+    organization = models.ForeignKey("organizations.Organization", on_delete=models.CASCADE, related_name="classes")
     name = models.CharField(max_length=200)
     age_group = models.CharField(max_length=50)
     description = models.TextField(blank=True)

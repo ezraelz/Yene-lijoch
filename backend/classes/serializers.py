@@ -15,7 +15,7 @@ class ClassRoomSerializer(serializers.ModelSerializer):
         fields = [
             "id",
 
-            "church",
+            "organization",
 
             "name",
             "description",
@@ -74,7 +74,7 @@ class ClassRoomCreateSerializer(serializers.ModelSerializer):
         model = ClassRoom
 
         fields = [
-            "church",
+            "organization",
             "name",
             "age_group",
             "description",
@@ -87,7 +87,7 @@ class ClassRoomCreateSerializer(serializers.ModelSerializer):
         ]
 
         extra_kwargs = {
-            "church": {
+            "organization": {
                 "required": True
             },
             "name": {
@@ -127,7 +127,7 @@ class ClassRoomEditSerializer(serializers.ModelSerializer):
         model = ClassRoom
 
         fields = [
-            "church",
+            "organization",
             "name",
             "age_group",
             "description",

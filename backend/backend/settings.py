@@ -59,7 +59,7 @@ INSTALLED_APPS = [
     "analytics",
     "notifications",
     'announcements',
-    "churches",
+    "organizations",
     "classes",
     "lessons",
     "events",
@@ -94,6 +94,13 @@ REST_FRAMEWORK = {
         "django_filters.rest_framework.DjangoFilterBackend",
     ],
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.ScopedRateThrottle",],
+    "DEFAULT_THROTTLE_RATES": {
+        "org_search": "30/min",
+        "org_create": "5/hour",
+        "org_join": "20/hour",
+    },
 }
 
 CORS_ALLOWED_ORIGINS = [

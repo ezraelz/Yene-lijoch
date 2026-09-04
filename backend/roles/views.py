@@ -13,7 +13,7 @@ from rest_framework.parsers import (
     FormParser,
     FileUploadParser,
 )
-from rest_framework.permissions import IsAdminUser
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -30,7 +30,7 @@ from .pagination import RolePagination
 # ============================================================
 
 class RoleView(APIView):
-    permission_classes = [IsAdminUser]
+    permission_classes = []
 
     def get(self, request):
         roles = (

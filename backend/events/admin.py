@@ -7,7 +7,7 @@ class EventAdmin(admin.ModelAdmin):
     list_display = (
         "id",
         "title",
-        "church",
+        "organization__name",
         "event_type",
         "location",
         "start_datetime",
@@ -16,7 +16,7 @@ class EventAdmin(admin.ModelAdmin):
     )
 
     list_filter = (
-        "church",
+        "organization",
         "event_type",
         "status",
         "start_datetime",
@@ -26,7 +26,7 @@ class EventAdmin(admin.ModelAdmin):
         "title",
         "description",
         "location",
-        "church__name",
+        "organization__name",
     )
 
     date_hierarchy = "start_datetime"
@@ -45,7 +45,7 @@ class EventAdmin(admin.ModelAdmin):
             "Event Information",
             {
                 "fields": (
-                    "church",
+                    "organization__name",
                     "title",
                     "description",
                     "event_type",

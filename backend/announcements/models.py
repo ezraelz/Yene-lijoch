@@ -1,7 +1,7 @@
 from django.db import models
 from django.conf import settings
 
-from churches.models import Church
+from organizations.models import Organization
 
 
 class Announcement(models.Model):
@@ -17,7 +17,7 @@ class Announcement(models.Model):
         IMPORTANT = "IMPORTANT", "Important"
         URGENT = "URGENT", "Urgent"
 
-    church = models.ForeignKey(Church, on_delete=models.CASCADE, related_name="announcements")
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="announcements")
     title = models.CharField(max_length=255)
     content = models.TextField()
     audience = models.CharField(max_length=20,choices=Audience.choices,default=Audience.ALL)

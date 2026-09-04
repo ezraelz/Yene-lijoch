@@ -1,25 +1,25 @@
 from django.utils import timezone
 from lessons.models import Lesson
 from attendance.models import Attendance
-from churches.models import Church
+from organizations.models import Organization
 from teachers.models import Teacher
 from students.models import Student
 from parents.models import Parent
 from classes.models import ClassRoom
-from .common import get_church_for_user
+from .common import get_organization_for_user
 
 def get_curriculum_report(
     user,
     start_date=None,
     end_date=None,
 ):
-    church = get_church_for_user(user)
+    organization = get_organization_for_user(user)
 
-    if not church:
+    if not organization:
         return None
 
     lessons = Lesson.objects.filter(
-        classroom__church=church
+        classroom__organization=organization
     )
 
     if start_date:

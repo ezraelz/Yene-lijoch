@@ -12,7 +12,6 @@ from .serializers import (
     StudentRegisterSerializer,
 )
 
-
 class StudentListCreateAPIView(APIView):
     """
     GET  /students/
@@ -22,13 +21,13 @@ class StudentListCreateAPIView(APIView):
         Register a new student.
     """
 
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
 
         students = (
             Student.objects
-            .select_related("profile", "church")
+            .select_related("profile", "organization")
             .order_by("id")
         )
 
@@ -69,7 +68,6 @@ class StudentListCreateAPIView(APIView):
             status=status.HTTP_400_BAD_REQUEST
         )
 
-
 class StudentDetailAPIView(APIView):
     """
     GET    /students/<id>/
@@ -78,19 +76,14 @@ class StudentDetailAPIView(APIView):
     DELETE /students/<id>/
     """
 
-    def get_permissions(self):
-
-        if self.request.method == "GET":
-            return [IsAuthenticated()]
-
-        return [IsAdminUser()]
+    permission_classes = [IsAuthenticated]
 
     def get_object(self, pk):
 
         try:
             return (
                 Student.objects
-                .select_related("profile", "church")
+                .select_related("profile", "organization")
                 .get(pk=pk)
             )
 
@@ -165,29 +158,13 @@ class StudentDetailAPIView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        serializer = StudentEditSerializer(
-            student,
-            data=request.data,
-            partial=True
-        )
-
+        serializer = StudentEditSerializer(student,data=request.data,partial=True)
+        print(request.data, 'request data');
         if serializer.is_valid():
-
-            student = serializer.save()
-
-            response_serializer = StudentSerializer(
-                student
-            )
-
-            return Response(
-                response_serializer.data,
-                status=status.HTTP_200_OK
-            )
-
-        return Response(
-            serializer.errors,
-            status=status.HTTP_400_BAD_REQUEST
-        )
+            serializer.save()
+            print(serializer.data, 'response data')
+            return Response(serializer.data,status=status.HTTP_200_OK)
+        return Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, pk):
 
@@ -201,11 +178,18 @@ class StudentDetailAPIView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        student.delete()
+        student.status = "inactive"
+        student.profile.is_active = False
+        student.profile.save(update_fields=["is_active"])
+
+        student.save(
+            update_fields=["status"]
+        )
 
         return Response(
             {
-                "detail": "Student deleted successfully."
+                "detail": "Student deactivated successfully."
             },
             status=status.HTTP_204_NO_CONTENT
         )
+    

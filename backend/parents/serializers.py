@@ -55,6 +55,16 @@ class ParentSerializer(serializers.ModelSerializer):
         read_only=True
     )
 
+    created_at = serializers.DateField(
+        source="profile.created_at",
+        read_only=True
+    )
+
+    status = serializers.BooleanField(
+        source="profile.is_active",
+        read_only=True
+    )
+
     # Students
     student = StudentSerializer(
         many=True,
@@ -62,6 +72,10 @@ class ParentSerializer(serializers.ModelSerializer):
     )
 
     student_name = serializers.SerializerMethodField()
+    organization_name = serializers.CharField(
+        source="organization.name",
+        read_only=True
+    )
 
     class Meta:
         model = Parent
@@ -79,9 +93,12 @@ class ParentSerializer(serializers.ModelSerializer):
             "address",
             "contact",
             "date_of_birth",
+            "created_at",
+            "status",
 
             # Parent
-            "church",
+            "organization",
+            "organization_name",
             "student",
             "student_name",
             "relationship",
@@ -97,9 +114,12 @@ class ParentSerializer(serializers.ModelSerializer):
             "sex",
             "address",
             "contact",
+            "status",
             "date_of_birth",
+            "created_at",
             "student",
             "student_name",
+            "organization_name",
         ]
 
     def get_student_name(self, obj):
@@ -121,7 +141,7 @@ class ParentEditSerializer(serializers.ModelSerializer):
         model = Parent
 
         fields = [
-            "church",
+            "organization",
             "student",
             "relationship",
         ]
@@ -157,13 +177,13 @@ class ParentCreateSerializer(serializers.ModelSerializer):
         model = Parent
 
         fields = [
-            "church",
+            "organization",
             "student",
             "relationship",
         ]
 
         extra_kwargs = {
-            "church": {
+            "organization": {
                 "required": True
             },
             "student": {

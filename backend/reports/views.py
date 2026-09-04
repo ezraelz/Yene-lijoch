@@ -1,7 +1,7 @@
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from .services.common import get_church_for_user
+from .services.common import get_organization_for_user
 from .services.dashboard import get_reports_dashboard
 from .services.attendance import get_student_attendance_report, get_attendance_summary
 from .services.enrollment import get_student_report
@@ -37,7 +37,7 @@ class ReportsDashboardAPIView(APIView):
                 {
                     "detail": (
                         "Your account is not associated "
-                        "with a church."
+                        "with an organization."
                     )
                 },
                 status=400
@@ -55,7 +55,7 @@ class StudentReportAPIView(APIView):
 
         if report is None:
             return Response({
-                "detail": "Your account is not associated with a church."
+                "detail": "Your account is not associated with an organization."
             }, status=400)
 
         serializer = StudentReportSerializer(report)
@@ -72,7 +72,7 @@ class TeacherReportAPIView(APIView):
 
         if report is None:
             return Response({
-                "detail": "Your account is not associated with a church."
+                "detail": "Your account is not associated with an organization."
             }, status=400)
 
         serializer = TeacherReportSerializer(report)
@@ -89,7 +89,7 @@ class ParentReportAPIView(APIView):
 
         if report is None:
             return Response({
-                "detail": "Your account is not associated with a church."
+                "detail": "Your account is not associated with an organization."
             }, status=400)
 
         serializer = ParentReportSerializer(report)
@@ -131,7 +131,7 @@ class AttendanceReportAPIView(APIView):
                 {
                     "detail": (
                         "Your account is not associated "
-                        "with a church."
+                        "with an organization."
                     )
                 },
                 status=400
@@ -168,7 +168,7 @@ class StudentAttendanceReportAPIView(APIView):
                 {
                     "detail": (
                         "Your account is not associated "
-                        "with a church."
+                        "with an organization."
                     )
                 },
                 status=400
@@ -182,15 +182,15 @@ class AttendanceReportDownloadAPIView(APIView):
 
     def get(self, request):
 
-        church = get_church_for_user(
+        organization = get_organization_for_user(
             request.user
         )
 
-        if not church:
+        if not organization:
             return Response(
                 {
                     "detail": (
-                        "No church associated "
+                        "No organization associated "
                         "with user."
                     )
                 },
@@ -226,7 +226,7 @@ class AttendanceReportDownloadAPIView(APIView):
             )
 
         report = get_attendance_summary(
-            church=church,
+            organization=organization,
             start_date=start_date,
             end_date=end_date,
         )

@@ -26,7 +26,7 @@ class EventListCreateAPIView(APIView):
 
         events = (
             Event.objects
-            .select_related("church")
+            .select_related("organization")
             .order_by("-start_date")
         )
 
@@ -85,7 +85,7 @@ class EventDetailAPIView(APIView):
         try:
             return (
                 Event.objects
-                .select_related("church")
+                .select_related("organization")
                 .get(pk=pk)
             )
 

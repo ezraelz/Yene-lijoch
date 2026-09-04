@@ -64,7 +64,7 @@ class TeacherSerializer(serializers.ModelSerializer):
             "date_of_birth",
 
             # Teacher
-            "church",
+            "organization",
             "employment_date",
         ]
 
@@ -142,7 +142,7 @@ class TeacherEditSerializer(serializers.ModelSerializer):
             "contact",
             "date_of_birth",
 
-            "church",
+            "organization",
             "employment_date",
         ]
 
@@ -161,12 +161,12 @@ class TeacherCreateSerializer(serializers.ModelSerializer):
         model = Teacher
 
         fields = [
-            "church",
+            "organization",
             "employment_date",
         ]
 
         extra_kwargs = {
-            "church": {
+            "organization": {
                 "required": True
             },
             "employment_date": {

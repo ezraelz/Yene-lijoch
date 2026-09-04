@@ -4,7 +4,7 @@ from users.models import Profile
 
 class Teacher(models.Model):
     profile = models.OneToOneField(Profile, on_delete=models.CASCADE, related_name="teacher_profile")
-    church = models.ForeignKey("churches.Church", on_delete=models.CASCADE)
+    organization = models.ForeignKey("organizations.Organization", on_delete=models.CASCADE)
     employment_date = models.DateField("Employment Date", blank=True, null=True)
     
     class Meta:

@@ -19,7 +19,7 @@ class ParentReportSerializer(serializers.Serializer):
 
 
 class DashboardReportSerializer(serializers.Serializer):
-    church = serializers.DictField()
+    organization = serializers.DictField()
     students = serializers.DictField()
     teachers = serializers.DictField()
     parents = serializers.DictField()

@@ -2,12 +2,12 @@ from django.db.models import Count, Q
 from django.utils import timezone
 from lessons.models import Lesson
 from attendance.models import Attendance
-from churches.models import Church
+from organizations.models import Organization
 from teachers.models import Teacher
 from students.models import Student
 from parents.models import Parent
 from classes.models import ClassRoom
-from .common import get_church_for_user
+from .common import get_organization_for_user
 
 def get_attendance_report(
     user,
@@ -20,13 +20,13 @@ def get_attendance_report(
     Generate an attendance report for the authenticated user's church.
     """
 
-    church = get_church_for_user(user)
+    organization = get_organization_for_user(user)
 
-    if not church:
+    if not organization:
         return None
 
     attendance = Attendance.objects.filter(
-        student__church=church
+        student__organization=organization
     ).select_related(
         "student__profile",
         "lesson",
@@ -132,13 +132,13 @@ def get_student_attendance_report(
     in the authenticated user's church.
     """
 
-    church = get_church_for_user(user)
+    organization = get_organization_for_user(user)
 
-    if not church:
+    if not organization:
         return None
 
     attendance = Attendance.objects.filter(
-        student__church=church
+        student__organization=organization
     )
 
     if start_date:
@@ -152,7 +152,7 @@ def get_student_attendance_report(
         )
 
     students = Student.objects.filter(
-        church=church
+        organization=organization
     ).select_related(
         "profile"
     )
@@ -216,13 +216,13 @@ def get_attendance_summary(
     end_date=None
 ):
 
-    church = get_church_for_user(user)
+    organization = get_organization_for_user(user)
 
-    if not church:
+    if not organization:
         return None
 
     attendance = Attendance.objects.filter(
-        student__church=church
+        student__organization=organization
     )
 
     if start_date:

@@ -20,7 +20,7 @@ class ParentListCreateAPIView(APIView):
         Register a new parent.
     """
 
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
 
@@ -28,7 +28,7 @@ class ParentListCreateAPIView(APIView):
             Parent.objects
             .select_related(
                 "profile",
-                "church"
+                "organization"
             )
             .prefetch_related(
                 "student__profile"
@@ -96,7 +96,7 @@ class ParentDetailAPIView(APIView):
                 Parent.objects
                 .select_related(
                     "profile",
-                    "church"
+                    "organization"
                 )
                 .prefetch_related(
                     "student__profile"

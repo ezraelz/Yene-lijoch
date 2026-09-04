@@ -36,11 +36,26 @@ class UserCreateView(APIView):
 
     def post(self, request):
         serializer = UserCreateSerializer(data=request.data)
+        print(request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+class DeactivatedUsers(APIView):
+    def get(self, request):
+        users = Profile.objects.filter(is_active=False)
+        serializer = UserSerializer(users)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+class ReactivateUser(APIView):
+    def post(self, request, pk):
+        user = Profile.objects.get(id=pk)
+        serializer = UserProfileUpdateSerializer(user, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
@@ -109,7 +124,6 @@ class LoginView(APIView):
             return Response({
                 "refresh": str(refresh),
                 "access": str(refresh.access_token),
-                "role": user.role.role_name,  # assuming you have a related role model
                 "is_superuser": user.is_superuser,
                 "id": user.id,
                 "username": user.username,

@@ -20,8 +20,8 @@ class Event(models.Model):
         ("cancelled", "Cancelled"),
     ]
 
-    church = models.ForeignKey(
-        "churches.Church",
+    organization = models.ForeignKey(
+        "organizations.Organization",
         on_delete=models.CASCADE,
         related_name="events"
     )

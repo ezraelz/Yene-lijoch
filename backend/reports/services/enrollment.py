@@ -1,18 +1,18 @@
 from students.models import Student
-from .common import get_church_for_user
+from .common import get_organization_for_user
 from django.db.models import Count, Q
 from django.utils import timezone
 
 
 def get_student_report(user, start_date=None, end_date=None):
 
-    church = get_church_for_user(user)
+    organization = get_organization_for_user(user)
 
-    if not church:
+    if not organization:
         return None
 
     students = Student.objects.filter(
-        church=church
+        organization=organization
     )
 
     if start_date:
@@ -52,13 +52,13 @@ def get_student_report(user, start_date=None, end_date=None):
     }
 
 def get_student_status_report(user):
-    church = get_church_for_user(user)
+    organization = get_organization_for_user(user)
 
-    if not church:
+    if not organization:
         return None
 
     students = Student.objects.filter(
-        church=church
+        organization=organization
     )
 
     return {
@@ -81,13 +81,13 @@ def get_student_status_report(user):
 
 def get_enrollment_report(user, year=None, month=None):
 
-    church = get_church_for_user(user)
+    organization = get_organization_for_user(user)
 
-    if not church:
+    if not organization:
         return None
 
     students = Student.objects.filter(
-        church=church
+        organization=organization
     )
 
     today = timezone.now().date()

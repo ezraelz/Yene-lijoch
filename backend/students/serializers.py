@@ -2,7 +2,8 @@ from rest_framework import serializers
 
 from .models import Student
 from users.models import Profile
-from churches.models import Church
+from organizations.models import Organization
+from organizations.serializers import OrganizationSummarySerializer
 from roles.models import Role
 
 
@@ -54,6 +55,8 @@ class StudentSerializer(serializers.ModelSerializer):
         read_only=True
     )
 
+    organization = OrganizationSummarySerializer(read_only=True)
+
     class Meta:
         model = Student
 
@@ -72,7 +75,7 @@ class StudentSerializer(serializers.ModelSerializer):
             "date_of_birth",
 
             # Student
-            "church",
+            "organization",
             "guardian_name",
             "guardian_contact",
             "status",
@@ -81,38 +84,7 @@ class StudentSerializer(serializers.ModelSerializer):
 
         read_only_fields = [
             "id",
-            "username",
-            "email",
-            "first_name",
-            "last_name",
-            "profile_image",
-            "sex",
-            "address",
-            "contact",
-            "date_of_birth",
         ]
-
-class StudentEditSerializer(serializers.ModelSerializer):
-
-    class Meta:
-        model = Student
-
-        fields = [
-            "church",
-            "guardian_name",
-            "guardian_contact",
-            "status",
-            "enrollment_date",
-        ]
-
-    def update(self, instance, validated_data):
-
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-
-        instance.save()
-
-        return instance
 
 class StudentCreateSerializer(serializers.ModelSerializer):
 
@@ -120,7 +92,7 @@ class StudentCreateSerializer(serializers.ModelSerializer):
         model = Student
 
         fields = [
-            "church",
+            "organization",
             "guardian_name",
             "guardian_contact",
             "status",
@@ -128,7 +100,7 @@ class StudentCreateSerializer(serializers.ModelSerializer):
         ]
 
         extra_kwargs = {
-            "church": {
+            "organization": {
                 "required": True
             },
             "guardian_name": {
@@ -143,6 +115,101 @@ class StudentCreateSerializer(serializers.ModelSerializer):
         }
 
 
+# students/serializers.py
+
+class StudentEditSerializer(serializers.ModelSerializer):
+    """
+    Serializer for editing student data.
+    Works with Student model but updates both Profile and Student.
+    """
+    
+    # These fields will come from the request with these exact names
+    # We use source to tell DRF where to save them
+    username = serializers.CharField(source='profile.username', required=False, allow_blank=True)
+    email = serializers.EmailField(source='profile.email', required=False, allow_blank=True)
+    first_name = serializers.CharField(source='profile.first_name', required=False, allow_blank=True)
+    last_name = serializers.CharField(source='profile.last_name', required=False, allow_blank=True)
+    profile_image = serializers.ImageField(source='profile.profile_image', required=False, allow_null=True)
+    sex = serializers.CharField(source='profile.sex', required=False, allow_blank=True, allow_null=True)
+    address = serializers.CharField(source='profile.address', required=False, allow_blank=True)
+    contact = serializers.CharField(source='profile.contact', required=False, allow_blank=True)
+    date_of_birth = serializers.DateField(source='profile.date_of_birth', required=False, allow_null=True)
+    
+    # Student fields (no source needed)
+    organization = serializers.PrimaryKeyRelatedField(
+        queryset=Organization.objects.all(),
+        required=False,
+        allow_null=True
+    )
+    guardian_name = serializers.CharField(required=False, allow_blank=True)
+    guardian_contact = serializers.CharField(required=False, allow_blank=True)
+    status = serializers.CharField(required=False)
+    enrollment_date = serializers.DateField(required=False, allow_null=True)
+
+    class Meta:
+        model = Student
+        fields = [
+            # Profile fields
+            "username",
+            "email",
+            "first_name",
+            "last_name",
+            "profile_image",
+            "sex",
+            "address",
+            "contact",
+            "date_of_birth",
+            # Student fields
+            "organization",
+            "guardian_name",
+            "guardian_contact",
+            "status",
+            "enrollment_date",
+        ]
+
+    def update(self, instance, validated_data):
+        # DRF automatically nests profile fields under 'profile' key
+        # because of the source='profile.field_name'
+        profile_data = validated_data.pop('profile', {})
+        # Update Profile
+        profile = instance.profile
+        
+        # Handle each profile field
+        if 'username' in profile_data:
+            profile.username = profile_data['username']
+        if 'email' in profile_data:
+            profile.email = profile_data['email']
+        if 'first_name' in profile_data:
+            profile.first_name = profile_data['first_name']
+        if 'last_name' in profile_data:
+            profile.last_name = profile_data['last_name']
+        if 'profile_image' in profile_data:
+            profile.profile_image = profile_data['profile_image']
+        if 'sex' in profile_data:
+            profile.sex = profile_data['sex']
+        if 'address' in profile_data:
+            profile.address = profile_data['address']
+        if 'contact' in profile_data:
+            profile.contact = profile_data['contact']
+        if 'date_of_birth' in profile_data:
+            profile.date_of_birth = profile_data['date_of_birth']
+        profile.save()
+        # Update Student fields (these are at the top level)
+        if 'organization' in validated_data:
+            instance.organization = validated_data['organization']
+        if 'guardian_name' in validated_data:
+            instance.guardian_name = validated_data['guardian_name']
+        if 'guardian_contact' in validated_data:
+            instance.guardian_contact = validated_data['guardian_contact']
+        if 'status' in validated_data:
+            instance.status = validated_data['status']
+        if 'enrollment_date' in validated_data:
+            instance.enrollment_date = validated_data['enrollment_date']
+        instance.save()
+        # Refresh to get updated data
+        instance.refresh_from_db()
+        return instance
+    
 class StudentRegisterSerializer(serializers.ModelSerializer):
 
     student_details = StudentCreateSerializer(
@@ -229,4 +296,5 @@ class StudentRegisterSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({
                 "student_details": str(e)
             })
+
         

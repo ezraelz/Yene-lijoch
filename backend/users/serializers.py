@@ -15,10 +15,11 @@ class UserSerializer(serializers.ModelSerializer):
                   "role", "role_name", "email", 'contact',
                   "is_active", "is_staff", "is_superuser",
                   'profile_image', 'address', 'created_at',
-                  'last_seen', 'bio']
+                  'last_seen', 'bio', 'deactivated_at', 
+                  'deactivation_reason', 'is_agreed_to_terms']
         read_only_fields = ["id", "is_staff",
                             "is_superuser",'created_at',
-                            'last_seen']
+                            'last_seen', 'is_agreed_to_terms']
 
 
 class UserCreateSerializer(serializers.ModelSerializer):
@@ -27,15 +28,17 @@ class UserCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Profile
         fields = [
-            'sex', 'age', "first_name",
-            "last_name","username", 'date_of_birth',
-            "role", "email", 'contact',"is_active", 
-            "is_staff", "is_superuser",'profile_image', 
-            'address', 'created_at',
-            'last_seen', 'bio', 'password'
+            "first_name",
+            "last_name",
+            "username",
+            "role", 
+            "email",
+            'password', 
+            'is_agreed_to_terms',
         ]
 
     def create(self, validated_data):
+
         password = validated_data.pop("password")
 
         user = Profile(**validated_data)
@@ -60,7 +63,6 @@ class UserProfileUpdateSerializer(serializers.ModelSerializer):
                   "role", "email", 'contact',
                   "is_active", "is_staff", "is_superuser",
                   'profile_image', 'address', 'bio',]     
-
 
 class EnhancedChangePasswordSerializer(serializers.Serializer):
     current_password = serializers.CharField(

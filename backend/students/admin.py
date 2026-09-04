@@ -10,7 +10,7 @@ class StudentAdmin(admin.ModelAdmin):
         "id",
         "get_student_name",
         "get_username",
-        "church",
+        "organization__name",
         "guardian_name",
         "guardian_contact",
         "status",
@@ -19,7 +19,7 @@ class StudentAdmin(admin.ModelAdmin):
 
     list_filter = (
         "status",
-        "church",
+        "organization__name",
         "enrollment_date",
     )
 

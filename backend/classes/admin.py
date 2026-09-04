@@ -9,7 +9,7 @@ class ClassRoomAdmin(admin.ModelAdmin):
     list_display = (
         "id",
         "name",
-        "church",
+        "organization__name",
         "teacher",
         "room",
         "status",
@@ -19,7 +19,7 @@ class ClassRoomAdmin(admin.ModelAdmin):
     )
 
     list_filter = (
-        "church",
+        "organization__name",
         "status",
         "start_date",
     )
@@ -28,7 +28,7 @@ class ClassRoomAdmin(admin.ModelAdmin):
         "name",
         "description",
         "room",
-        "church__name",
+        "organization__name",
         "teacher__profile__first_name",
         "teacher__profile__last_name",
         "students__profile__first_name",
@@ -57,7 +57,7 @@ class ClassRoomAdmin(admin.ModelAdmin):
             "Class Information",
             {
                 "fields": (
-                    "church",
+                    "organization",
                     "name",
                     "description",
                     "teacher",

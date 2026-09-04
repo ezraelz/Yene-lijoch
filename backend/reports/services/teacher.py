@@ -1,4 +1,4 @@
-from .common import get_church_for_user
+from .common import get_organization_for_user
 from teachers.models import Teacher
 from lessons.models import Lesson
 from attendance.models import Attendance
@@ -8,13 +8,13 @@ def get_teacher_report(user):
     Generate a teacher summary report.
     """
 
-    church = get_church_for_user(user)
+    organization = get_organization_for_user(user)
 
-    if not church:
+    if not organization:
         return None
 
     teachers = Teacher.objects.filter(
-        church=church
+        organization=organization
     ).prefetch_related(
         "subject",
         "profile"
@@ -51,13 +51,13 @@ def get_teacher_performance_report(
     start_date=None,
     end_date=None,
 ):
-    church = get_church_for_user(user)
+    organization = get_organization_for_user(user)
 
-    if not church:
+    if not organization:
         return None
 
     teachers = Teacher.objects.filter(
-        church=church
+        organization=organization
     ).select_related(
         "profile"
     ).prefetch_related(
@@ -70,7 +70,7 @@ def get_teacher_performance_report(
 
         lessons = Lesson.objects.filter(
             teacher=teacher,
-            classroom__church=church
+            classroom__organization=organization
         )
 
         if start_date:
@@ -110,7 +110,7 @@ def get_teacher_performance_report(
 
         attendance = Attendance.objects.filter(
             lesson__teacher=teacher,
-            lesson__classroom__church=church
+            lesson__classroom__organization=organization
         )
 
         if start_date:
@@ -161,7 +161,7 @@ def get_teacher_performance_report(
             },
 
             "classes": teacher.classes.filter(
-                church=church
+                organization=organization
             ).count(),
 
             "total_lessons": total_lessons,
