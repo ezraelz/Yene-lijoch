@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     "drf_spectacular",
     "django_celery_results",
     "django_celery_beat",
+    "channels",
 
     # Local apps
     "users",
@@ -69,7 +70,8 @@ INSTALLED_APPS = [
     "students",
     "teachers",
     "parents",
-    "attendance"
+    "attendance",
+    "chat",
 ]
 
 MIDDLEWARE = [
@@ -131,12 +133,18 @@ TEMPLATES = [
     },
 ]
 
+ASGI_APPLICATION = "backend.asgi.application"
+
 WSGI_APPLICATION = 'backend.wsgi.application'
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(hours=12),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
     "AUTH_HEADER_TYPES": ("Bearer",),
+}
+
+CHANNEL_LAYERS = {
+    "default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}
 }
 
 # Database

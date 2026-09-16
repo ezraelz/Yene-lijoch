@@ -59,6 +59,30 @@ class TeacherMeAPIView(APIView):
         )
         return Response(TeacherMeSerializer(teacher).data)
 
+    def patch(self, request):
+        teacher = get_object_or_404(
+            base_queryset(),
+            profile=request.user,
+        )
+
+        serializer = TeacherEditSerializer(
+            teacher,
+            data=request.data,
+            partial=True,
+            context={"request": request},
+        )
+        if not serializer.is_valid():
+            return Response(
+                serializer.errors,
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        teacher = serializer.save()
+        return Response(
+            TeacherMeSerializer(teacher).data,
+            status=status.HTTP_200_OK,
+        )
+
 
 # ======================================================================
 # List + create
