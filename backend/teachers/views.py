@@ -1,198 +1,142 @@
-from django.db.models import Prefetch
-
+from django.shortcuts import get_object_or_404
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import IsAdminUser, IsAuthenticated
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import PermissionDenied
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 
 from .models import Teacher
 from .serializers import (
     TeacherSerializer,
-    TeacherEditSerializer,
+    TeacherMeSerializer,
+    TeacherCreateSerializer,
     TeacherRegisterSerializer,
+    TeacherEditSerializer,
+)
+from organizations.utils import (
+    is_superuser,
+    is_admin,
+    get_user_organization,
 )
 
+
+# ======================================================================
+# Scoping helpers (same pattern as everywhere else)
+# ======================================================================
+
+def base_queryset():
+    return (
+        Teacher.objects
+        .select_related("profile", "profile__organization")
+        .prefetch_related("classes")
+    )
+
+
+def queryset_for_user(user):
+    qs = base_queryset()
+    if is_superuser(user):
+        return qs
+    org = get_user_organization(user)
+    if not org:
+        return qs.none()
+    return qs.filter(profile__organization__organization=org)
+
+
+# ======================================================================
+# Me — the endpoint TeacherContext depends on
+# ======================================================================
+
+class TeacherMeAPIView(APIView):
+    """GET /teachers/me/"""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        teacher = get_object_or_404(
+            base_queryset(),
+            profile=request.user,
+        )
+        return Response(TeacherMeSerializer(teacher).data)
+
+
+# ======================================================================
+# List + create
+# ======================================================================
 
 class TeacherListCreateAPIView(APIView):
     """
     GET  /teachers/
-        List all teachers.
-
-    POST /teachers/
-        Register a new teacher including Profile information.
-    """
-
-    permission_classes = [IsAdminUser]
-
-    def get(self, request):
-        teachers = (
-            Teacher.objects
-            .select_related("profile", "organization")
-            .prefetch_related("subject")
-            .order_by("id")
-        )
-
-        serializer = TeacherSerializer(
-            teachers,
-            many=True
-        )
-
-        return Response(
-            serializer.data,
-            status=status.HTTP_200_OK
-        )
-
-    def post(self, request):
-        serializer = TeacherRegisterSerializer(
-            data=request.data
-        )
-
-        if serializer.is_valid():
-            profile = serializer.save()
-
-            # Get the newly created teacher
-            teacher = profile.teacher_profile
-
-            response_serializer = TeacherSerializer(
-                teacher
-            )
-
-            return Response(
-                response_serializer.data,
-                status=status.HTTP_201_CREATED
-            )
-
-        return Response(
-            serializer.errors,
-            status=status.HTTP_400_BAD_REQUEST
-        )
-
-
-class TeacherDetailAPIView(APIView):
-    """
-    GET    /teachers/<id>/    Retrieve teacher.
-    PUT    /teachers/<id>/    Update teacher.
-    PATCH  /teachers/<id>/    Partially update teacher.
-    DELETE /teachers/<id>/    Delete teacher.
+    POST /teachers/     (register a new teacher + profile)
     """
 
     permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
-    def get_object(self, pk):
-        try:
-            return (
-                Teacher.objects
-                .select_related("profile", "organization")
-                .prefetch_related("subject")
-                .get(pk=pk)
-            )
-        except Teacher.DoesNotExist:
-            return None
+    def get(self, request):
+        qs = queryset_for_user(request.user)
+        return Response(TeacherSerializer(qs, many=True).data)
+
+    def post(self, request):
+        if not is_admin(request.user):
+            raise PermissionDenied("You do not have permission to register teachers.")
+
+        serializer = TeacherRegisterSerializer(
+            data=request.data,
+            context={
+                "request": request,
+                "organization": get_user_organization(request.user),
+            },
+        )
+        serializer.is_valid(raise_exception=True)
+        profile = serializer.save()
+
+        teacher = profile.teacher_profile
+        return Response(
+            TeacherSerializer(teacher).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+# ======================================================================
+# Detail
+# ======================================================================
+
+class TeacherDetailAPIView(APIView):
+    """
+    GET    /teachers/<id>/
+    PATCH  /teachers/<id>/
+    DELETE /teachers/<id>/
+    """
+
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def get_object(self, request, pk):
+        qs = queryset_for_user(request.user)
+        return get_object_or_404(qs, pk=pk)
 
     def get(self, request, pk):
-        teacher = self.get_object(pk)
-
-        if teacher is None:
-            return Response(
-                {
-                    "detail": "Teacher not found."
-                },
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        serializer = TeacherSerializer(
-            teacher
-        )
-
-        return Response(
-            serializer.data,
-            status=status.HTTP_200_OK
-        )
-
-    def put(self, request, pk):
-        teacher = self.get_object(pk)
-
-        if teacher is None:
-            return Response(
-                {
-                    "detail": "Teacher not found."
-                },
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        serializer = TeacherEditSerializer(
-            teacher,
-            data=request.data
-        )
-
-        if serializer.is_valid():
-            teacher = serializer.save()
-
-            response_serializer = TeacherSerializer(
-                teacher
-            )
-
-            return Response(
-                response_serializer.data,
-                status=status.HTTP_200_OK
-            )
-
-        return Response(
-            serializer.errors,
-            status=status.HTTP_400_BAD_REQUEST
-        )
+        return Response(TeacherSerializer(self.get_object(request, pk)).data)
 
     def patch(self, request, pk):
-        teacher = self.get_object(pk)
+        if not is_admin(request.user):
+            raise PermissionDenied("You do not have permission to edit teachers.")
 
-        if teacher is None:
-            return Response(
-                {
-                    "detail": "Teacher not found."
-                },
-                status=status.HTTP_404_NOT_FOUND
-            )
-
+        teacher = self.get_object(request, pk)
         serializer = TeacherEditSerializer(
             teacher,
             data=request.data,
-            partial=True
+            partial=True,
+            context={"request": request},
         )
-
-        if serializer.is_valid():
-            teacher = serializer.save()
-
-            response_serializer = TeacherSerializer(
-                teacher
-            )
-
-            return Response(
-                response_serializer.data,
-                status=status.HTTP_200_OK
-            )
-
-        return Response(
-            serializer.errors,
-            status=status.HTTP_400_BAD_REQUEST
-        )
+        serializer.is_valid(raise_exception=True)
+        teacher = serializer.save()
+        return Response(TeacherSerializer(teacher).data)
 
     def delete(self, request, pk):
-        teacher = self.get_object(pk)
-
-        if teacher is None:
-            return Response(
-                {
-                    "detail": "Teacher not found."
-                },
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        teacher.delete()
-
-        return Response(
-            {
-                "detail": "Teacher deleted successfully."
-            },
-            status=status.HTTP_204_NO_CONTENT
-        )
+        if not is_admin(request.user):
+            raise PermissionDenied("You do not have permission to delete teachers.")
+        self.get_object(request, pk).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
     

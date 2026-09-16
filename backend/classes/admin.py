@@ -11,7 +11,6 @@ class ClassRoomAdmin(admin.ModelAdmin):
         "name",
         "organization__name",
         "teacher",
-        "room",
         "status",
         "start_date",
         "end_date",
@@ -27,7 +26,6 @@ class ClassRoomAdmin(admin.ModelAdmin):
     search_fields = (
         "name",
         "description",
-        "room",
         "organization__name",
         "teacher__profile__first_name",
         "teacher__profile__last_name",
@@ -80,7 +78,6 @@ class ClassRoomAdmin(admin.ModelAdmin):
                 "fields": (
                     "start_date",
                     "end_date",
-                    "room",
                 )
             }
         ),

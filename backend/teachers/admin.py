@@ -9,12 +9,10 @@ class TeacherAdmin(admin.ModelAdmin):
     list_display = (
         'id',
         'get_teacher_name',
-        'organization__name',
         'employment_date',
     )
 
     list_filter = (
-        'organization__name',
         'employment_date',
     )
 
@@ -22,7 +20,6 @@ class TeacherAdmin(admin.ModelAdmin):
         'profile__first_name',
         'profile__last_name',
         'profile__email',
-        'organization__name',
     )
 
     ordering = (

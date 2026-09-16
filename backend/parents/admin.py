@@ -10,13 +10,11 @@ class ParentAdmin(admin.ModelAdmin):
         "id",
         "get_parent_name",
         "get_username",
-        "organization",
         "relationship",
         "get_students",
     )
 
     list_filter = (
-        "organization",
         "relationship",
     )
 

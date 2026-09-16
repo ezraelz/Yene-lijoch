@@ -3,12 +3,15 @@ from . import views
 from .views import (CustomTokenObtainPairView ,
                     ProfileView,StaffView,
                     LoginView,ProfileDetailView,
-                    LogoutView, UserCreateView)
+                    LogoutView, UserCreateView,
+                    DeactivatedUsers, ReactivateUser)
 from rest_framework_simplejwt.views import TokenRefreshView
 
 urlpatterns = [
     path('users/', views.userView.as_view(), name='users'),
     path('users/create/', UserCreateView.as_view(), name='users'),
+    path('users/deactivated/', DeactivatedUsers.as_view(), name='users-deactivated'),
+    path('users/<int:pk>/reactivate/', ReactivateUser.as_view(), name='users-reactivate'),
     
     path('login/', LoginView.as_view(), name='login'),
     path('logout/', LogoutView.as_view(), name='logout'),

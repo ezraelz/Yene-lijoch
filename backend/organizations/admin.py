@@ -11,9 +11,4 @@ class OrganizationAdmin(admin.ModelAdmin):
     readonly_fields = ["normalized_name", "created_at", "approved_at"]
 
 
-@admin.register(OrganizationMembership)
-class OrganizationMembershipAdmin(admin.ModelAdmin):
-    list_display = ["user", "organization", "role", "status", "requested_at", "reviewed_by", "reviewed_at"]
-    list_filter = ["status", "role"]
-    search_fields = ["user__username", "organization__name"]
     

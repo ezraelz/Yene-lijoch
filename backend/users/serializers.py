@@ -4,17 +4,20 @@ from django.contrib.auth.password_validation import validate_password
 from .models import Profile
 from roles.models import Role
 import re
+from organizations.serializers import OrganizationSummarySerializer
+
 
 class UserSerializer(serializers.ModelSerializer):
     role_name = serializers.CharField(source="role.role_name", read_only=True)
-
+    organization = OrganizationSummarySerializer(read_only=True)
     class Meta:
         model = Profile
         fields = ["id",'sex', 'age', "first_name",
                   "last_name","username", 'date_of_birth',
                   "role", "role_name", "email", 'contact',
                   "is_active", "is_staff", "is_superuser",
-                  'profile_image', 'address', 'created_at',
+                  'profile_image', 'address', 
+                  'created_at','organization',
                   'last_seen', 'bio', 'deactivated_at', 
                   'deactivation_reason', 'is_agreed_to_terms']
         read_only_fields = ["id", "is_staff",
@@ -28,11 +31,9 @@ class UserCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Profile
         fields = [
-            "first_name",
-            "last_name",
             "username",
-            "role", 
             "email",
+            "role",
             'password', 
             'is_agreed_to_terms',
         ]
@@ -40,8 +41,9 @@ class UserCreateSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
 
         password = validated_data.pop("password")
+        role, _= Role.objects.get_or_create(role_name="parent") 
 
-        user = Profile(**validated_data)
+        user = Profile(**validated_data, role=role)
         user.set_password(password)
         user.save()
 
@@ -60,7 +62,7 @@ class UserProfileUpdateSerializer(serializers.ModelSerializer):
         model = Profile
         fields = ['sex', 'age', "first_name",
                   "last_name","username", 'date_of_birth',
-                  "role", "email", 'contact',
+                  "role", "email", 'contact', 'organization',
                   "is_active", "is_staff", "is_superuser",
                   'profile_image', 'address', 'bio',]     
 

@@ -63,6 +63,7 @@ INSTALLED_APPS = [
     "classes",
     "lessons",
     "events",
+    "medias",
     "roles",
     "reports",
     "students",

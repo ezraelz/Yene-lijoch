@@ -4,8 +4,6 @@ from students.models import Student
 
 class Parent(models.Model):
     profile = models.OneToOneField(Profile, on_delete=models.CASCADE, related_name="parent_profile")
-    organization = models.ForeignKey("organizations.Organization", on_delete=models.CASCADE)
-
     student = models.ManyToManyField(Student, related_name="parents")
     relationship = models.CharField(max_length=50, choices=[("father", "Father"), ("mother", "Mother"), ("guardian", "Guardian")])
 

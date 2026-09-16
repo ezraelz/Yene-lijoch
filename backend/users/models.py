@@ -38,16 +38,20 @@ class Profile(AbstractBaseUser, PermissionsMixin):
     age = models.IntegerField(blank=True, null=True)
     sex = models.CharField('Sex', max_length=10, blank=True, null=True, choices=SexChoices.choices, default=SexChoices.MALE)
     email = models.EmailField("Email", max_length=254, unique=True, null=True, blank=True)
+    
+    organization = models.ForeignKey("organizations.OrganizationMembership", on_delete=models.CASCADE, blank=True, null=True)
     contact = models.CharField('Contact', max_length=100, null=True, blank=True)
     address = models.CharField('Address', blank=True, null=True)
     date_of_birth = models.DateField("Date of Birth", null=True, blank=True)
     profile_image = models.ImageField("Profile Picture", upload_to="profile/", default="fun.jpg", null=True, blank=True)
     bio = models.CharField("Bio", max_length=250, blank=True, null=True)
     role = models.ForeignKey(Role, verbose_name="Role", on_delete=models.SET_NULL, blank=True, null=True)
+
     last_seen = models.DateField("Last seen", auto_now=True, null=True, blank=True)
     created_at = models.DateField("Created at", auto_now_add=True, null=True, blank=True)
     deactivated_at = models.DateField("Created at", auto_now_add=True, null=True, blank=True)
     deactivation_reason = models.CharField('Deactivation reason', blank=True, null=True)
+
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     is_superuser = models.BooleanField(default=False, blank=True, null=True)

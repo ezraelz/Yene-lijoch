@@ -1,11 +1,27 @@
 from rest_framework import serializers
+import re
 
 from .models import Parent
 from users.models import Profile
 from students.models import Student
 from students.serializers import StudentSerializer
 from roles.models import Role
+from organizations.models import Organization
 
+def sanitize_s_name(name: str) -> str:
+    """Basic input sanitization for the display name (not the compare key)."""
+    if not name:
+        return ""
+    # Strip any HTML/script content defensively; org names are plain text.
+    text = re.sub(r"<[^>]*>", "", name)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+class ParentSearchSerializer(serializers.Serializer):
+    q = serializers.CharField(min_length=2, max_length=150)
+
+    def validate_q(self, value):
+        return sanitize_s_name(value)
 
 class ParentSerializer(serializers.ModelSerializer):
 
@@ -73,7 +89,7 @@ class ParentSerializer(serializers.ModelSerializer):
 
     student_name = serializers.SerializerMethodField()
     organization_name = serializers.CharField(
-        source="organization.name",
+        source="profile.organization.name",
         read_only=True
     )
 
@@ -97,7 +113,6 @@ class ParentSerializer(serializers.ModelSerializer):
             "status",
 
             # Parent
-            "organization",
             "organization_name",
             "student",
             "student_name",
@@ -129,41 +144,6 @@ class ParentSerializer(serializers.ModelSerializer):
             for student in obj.student.all()
         )
 
-class ParentEditSerializer(serializers.ModelSerializer):
-
-    student = serializers.PrimaryKeyRelatedField(
-        queryset=Student.objects.all(),
-        many=True,
-        required=False
-    )
-
-    class Meta:
-        model = Parent
-
-        fields = [
-            "organization",
-            "student",
-            "relationship",
-        ]
-
-    def update(self, instance, validated_data):
-
-        students = validated_data.pop(
-            "student",
-            None
-        )
-
-        # Update Parent fields
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-
-        instance.save()
-
-        # Update students
-        if students is not None:
-            instance.student.set(students)
-
-        return instance
 
 class ParentCreateSerializer(serializers.ModelSerializer):
 
@@ -177,15 +157,11 @@ class ParentCreateSerializer(serializers.ModelSerializer):
         model = Parent
 
         fields = [
-            "organization",
             "student",
             "relationship",
         ]
 
         extra_kwargs = {
-            "organization": {
-                "required": True
-            },
             "student": {
                 "required": True
             },
@@ -216,9 +192,8 @@ class ParentRegisterSerializer(serializers.ModelSerializer):
         fields = [
             "username",
             "email",
-            "first_name",
-            "last_name",
             "password",
+            "organization",
             "contact",
             "date_of_birth",
             "address",
@@ -299,4 +274,47 @@ class ParentRegisterSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({
                 "parent_details": str(e)
             })
+
+
+class ParentEditSerializer(serializers.ModelSerializer):
+
+    parent_details = ParentCreateSerializer(
+        write_only=True,
+        required=False
+    )
+
+    class Meta:
+        model = Profile
+        
+        fields = [
+            "username",
+            "email",
+            "first_name",
+            "last_name",
+            "organization",
+            "contact",
+            "date_of_birth",
+            "address",
+            "parent_details",
+        ]
+
+    def update(self, instance, validated_data):
+
+        # Extract parent details
+        parent_details = validated_data.pop(
+            "parent_details"
+        )
+
+        # Update Parent fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
+        instance.save()
+
+        # Update students
+        if parent_details is not None:
+            instance.student.set(parent_details)
+
+        return instance
+
 

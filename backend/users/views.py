@@ -1,4 +1,4 @@
-from django.shortcuts import render,redirect
+from django.shortcuts import render,redirect,get_object_or_404
 from .serializers import UserSerializer,UserProfileUpdateSerializer,CustomTokenObtainPairSerializer,UserCreateSerializer
 from rest_framework import viewsets,status
 from .models import Profile
@@ -11,6 +11,7 @@ from django.contrib.auth import authenticate, login,logout
 from django.contrib import messages
 from django.utils import timezone
 from datetime import timedelta
+from rest_framework.exceptions import PermissionDenied, NotFound
 from rest_framework.exceptions import NotFound
 from rest_framework_simplejwt.views import TokenObtainPairView
 from roles.models import Role
@@ -22,279 +23,345 @@ from django.conf import settings
 from django.utils.crypto import get_random_string
 from django.core.cache import cache
 import json
+import logging
+from organizations.utils import (
+    is_superuser,
+    is_admin,
+    get_user_organization,
+)
+
+def scoped_profiles(user):
+    """
+    Superusers   → all profiles.
+    Org admins   → only profiles whose organization is their org.
+    Others       → only themselves.
+    """
+    qs = Profile.objects.select_related("role", "organization")
+
+    if is_superuser(user):
+        return qs
+
+    if is_admin(user):
+        org = get_user_organization(user)
+        if not org:
+            return qs.none()
+        # Profile.organization is a FK to OrganizationMembership.
+        return qs.filter(organization__organization=org)
+
+    # Regular users see only themselves.
+    return qs.filter(pk=user.pk)
+
+# ======================================================================
+# User list (admin) — scoped
+# ======================================================================
 
 class userView(APIView):
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        users = Profile.objects.all()
+        if not (is_admin(request.user) or is_superuser(request.user)):
+            raise PermissionDenied("Admin access required.")
+
+        users = scoped_profiles(request.user)
         serializer = UserSerializer(users, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+    
+
+# ======================================================================
+# User create (open registration or admin-driven)
+# ======================================================================
 
 class UserCreateView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
         serializer = UserCreateSerializer(data=request.data)
-        print(request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+
+# ======================================================================
+# Deactivated users (scoped)
+# ======================================================================
 
 class DeactivatedUsers(APIView):
+    permission_classes = [IsAuthenticated]
+
     def get(self, request):
-        users = Profile.objects.filter(is_active=False)
-        serializer = UserSerializer(users)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        if not (is_admin(request.user) or is_superuser(request.user)):
+            raise PermissionDenied("Admin access required.")
+
+        qs = scoped_profiles(request.user).filter(is_active=False)
+        return Response(UserSerializer(qs, many=True).data)
+    
+# ======================================================================
+# Reactivate
+# ======================================================================
 
 class ReactivateUser(APIView):
+    permission_classes = [IsAuthenticated]
+
     def post(self, request, pk):
-        user = Profile.objects.get(id=pk)
-        serializer = UserProfileUpdateSerializer(user, data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        if not (is_admin(request.user) or is_superuser(request.user)):
+            raise PermissionDenied("Admin access required.")
+
+        # Scope the lookup so admins can't reactivate users outside their org.
+        profile = get_object_or_404(scoped_profiles(request.user), pk=pk)
+        profile.is_active = True
+        profile.save(update_fields=["is_active"])
+        return Response(UserSerializer(profile).data, status=status.HTTP_200_OK)
     
+# ======================================================================
+# JWT login
+# ======================================================================
+
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
+
     
+# ======================================================================
+# Current user's own profile
+# ======================================================================
+
 class ProfileView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def get(self, request, *args, **kwargs):
-        user_profile = request.user
-        serializer = UserSerializer(user_profile, context={"request": request})
+    def get(self, request):
+        # request.user IS the Profile (AUTH_USER_MODEL = users.Profile).
+        serializer = UserSerializer(request.user, context={"request": request})
         return Response(serializer.data)
     
+# ======================================================================
+# Staff list (scoped)
+# ======================================================================
+
 class StaffView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def get(self, request):
-        try:
-            # Get all profiles except students and parents
-            staff = Profile.objects.exclude(role__role_name__in=["student", "parent"])
-        except Exception as e:
-            return Response(
-                {"error": "Something went wrong! Please try again."},
-                status=status.HTTP_404_NOT_FOUND
-            )
-        
-        serializer = UserSerializer(staff, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        qs = scoped_profiles(request.user).exclude(
+            role__role_name__in=["student", "parent"]
+        )
+        return Response(UserSerializer(qs, many=True).data, status=status.HTTP_200_OK)
+    
+
+# ======================================================================
+# Profile detail — scoped + permission-checked
+# ======================================================================
 
 class ProfileDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def _get_object(self, request, pk):
+        return get_object_or_404(scoped_profiles(request.user), pk=pk)
+
     def get(self, request, pk):
-        profile = Profile.objects.get(id=pk)
+        profile = self._get_object(request, pk)
+        return Response(
+            UserSerializer(profile, context={"request": request}).data,
+            status=status.HTTP_200_OK,
+        )
 
-        serializer = UserSerializer(profile)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-    
     def put(self, request, pk):
-        profile = Profile.objects.get(id=pk)
-
-        serializer = UserProfileUpdateSerializer(profile, data=request.data, partial=True)
+        if not (is_admin(request.user) or is_superuser(request.user)):
+            raise PermissionDenied("Admin access required.")
+        profile = self._get_object(request, pk)
+        serializer = UserProfileUpdateSerializer(
+            profile, data=request.data, partial=True
+        )
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        print(serializer.data)
+            return Response(
+                UserSerializer(profile, context={"request": request}).data
+            )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    def delete(self, request, pk):
-        try:
-            profile = Profile.objects.get(id=pk)
-            profile.delete()
-            return Response(status=status.HTTP_200_OK)
-        except Profile.DoesNotExist:
-            return Response(status=status.HTTP_400_BAD_REQUEST)
 
-class LoginView(APIView): 
+    def delete(self, request, pk):
+        if not is_superuser(request.user):
+            raise PermissionDenied("Only superusers can delete profiles.")
+        self._get_object(request, pk).is_active = False
+        self._get_object(request, pk).save()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    
+# ======================================================================
+# Login (session + JWT)
+# ======================================================================
+
+class LoginView(APIView):
     permission_classes = [AllowAny]
 
-    def post(self, request): 
-        username = request.data.get('username') 
-        password = request.data.get('password') 
-        user = authenticate(username=username, password=password) 
-        profile_image = None
-        if hasattr(user, "profile_image") and user.profile_image:
-            profile_image = request.build_absolute_uri(user.profile_image)
+    def post(self, request):
+        username = request.data.get("username")
+        password = request.data.get("password")
+        user = authenticate(username=username, password=password)
 
-        if user is not None: 
-            login(request, user) 
-            refresh = RefreshToken.for_user(user) 
-            return Response({
-                "refresh": str(refresh),
-                "access": str(refresh.access_token),
-                "is_superuser": user.is_superuser,
-                "id": user.id,
-                "username": user.username,
-                "profile_image": profile_image,
+        if user is None:
+            return Response(
+                {"error": "Invalid credentials"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        profile_image = None
+        if getattr(user, "profile_image", None):
+            profile_image = request.build_absolute_uri(user.profile_image.url)
+
+        login(request, user)
+        refresh = RefreshToken.for_user(user)
+
+        return Response({
+            "refresh": str(refresh),
+            "access": str(refresh.access_token),
+            "is_superuser": user.is_superuser,
+            "id": user.id,
+            "username": user.username,
+            "profile_image": profile_image,
         })
-        else: return Response({'error': 'Invalid credentials'}, status=400)
+    
+
+# ======================================================================
+# Change password (unchanged except cleanup)
+# ======================================================================
 
 class EnhancedChangePasswordView(APIView):
     permission_classes = [IsAuthenticated]
-    
-    def post(self, request):
-        serializer = EnhancedChangePasswordSerializer(data=request.data, context={'request': request})
-        
-        if serializer.is_valid():
-            user = request.user
-            
-            # Check current password
-            if not user.check_password(serializer.validated_data['current_password']):
-                return Response(
-                    {'error': 'Current password is incorrect.'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            
-            new_password = serializer.validated_data['new_password']
-            
-            # Check password history (prevent reusing recent passwords)
-            if self.is_password_in_history(user, new_password):
-                return Response(
-                    {'error': 'You cannot reuse a recently used password.'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            
-            # Set new password
-            user.set_password(new_password)
-            user.save()
-            
-            # Save to password history
-            self.save_password_history(user, new_password)
-            
-            # Update session auth hash to keep user logged in
-            update_session_auth_hash(request, user)
-            
-            # Log the password change (optional)
-            self.log_password_change(user, request)
-            
-            return Response(
-                {
-                    'message': 'Password changed successfully.',
-                    'timestamp': timezone.now().isoformat()
-                },
-                status=status.HTTP_200_OK
-            )
-        
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    def is_password_in_history(self, user, new_password):
-        """
-        Check if the new password was used in the last 6 months
-        """
-        six_months_ago = timezone.now() - timedelta(days=180)
-        
-        recent_passwords = PasswordHistory.objects.filter(
-            user=user,
-            created_at__gte=six_months_ago
-        )
-        
-        for password_history in recent_passwords:
-            if password_history.check_password(new_password):
-                return True
-        
-        return False
-    
-    def save_password_history(self, user, password):
-        """
-        Save the new password to history
-        """
-        PasswordHistory.objects.create(user=user, password=password)
-        
-        # Keep only last 10 passwords
-        passwords_to_keep = PasswordHistory.objects.filter(
-            user=user
-        ).order_by('-created_at')[:10]
-        
-        PasswordHistory.objects.filter(user=user).exclude(
-            id__in=passwords_to_keep.values_list('id', flat=True)
-        ).delete()
-    
-    def log_password_change(self, user, request):
-        """
-        Log password change activity
-        """
-        # You can integrate with your logging system here
-        print(f"Password changed for user: {user.username} at {timezone.now()}")
-        # Or use Django's logging
-        import logging
-        logger = logging.getLogger('security')
-        logger.info(f"Password changed for user: {user.username}", extra={
-            'user_id': user.id,
-            'ip_address': self.get_client_ip(request)
-        })
-    
-    def get_client_ip(self, request):
-        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-        if x_forwarded_for:
-            ip = x_forwarded_for.split(',')[0]
-        else:
-            ip = request.META.get('REMOTE_ADDR')
-        return ip
 
-class LogoutView(APIView):   
-    permission_classes = [IsAuthenticated] 
     def post(self, request):
+        serializer = EnhancedChangePasswordSerializer(
+            data=request.data, context={"request": request}
+        )
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        user = request.user
+
+        if not user.check_password(serializer.validated_data["current_password"]):
+            return Response(
+                {"error": "Current password is incorrect."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        new_password = serializer.validated_data["new_password"]
+
+        if self.is_password_in_history(user, new_password):
+            return Response(
+                {"error": "You cannot reuse a recently used password."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user.set_password(new_password)
+        user.save()
+
+        self.save_password_history(user, new_password)
+        update_session_auth_hash(request, user)
+        self.log_password_change(user, request)
+
+        return Response(
+            {
+                "message": "Password changed successfully.",
+                "timestamp": timezone.now().isoformat(),
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    def is_password_in_history(self, user, new_password):
+        six_months_ago = timezone.now() - timedelta(days=180)
+        recent = PasswordHistory.objects.filter(
+            user=user, created_at__gte=six_months_ago
+        )
+        return any(p.check_password(new_password) for p in recent)
+
+    def save_password_history(self, user, password):
+        PasswordHistory.objects.create(user=user, password=password)
+        keep = PasswordHistory.objects.filter(user=user).order_by("-created_at")[:10]
+        PasswordHistory.objects.filter(user=user).exclude(
+            id__in=keep.values_list("id", flat=True)
+        ).delete()
+
+    def log_password_change(self, user, request):
+        logger = logging.getLogger("security")
+        logger.info(
+            f"Password changed for user: {user.username}",
+            extra={"user_id": user.id, "ip_address": self.get_client_ip(request)},
+        )
+
+    def get_client_ip(self, request):
+        xff = request.META.get("HTTP_X_FORWARDED_FOR")
+        return xff.split(",")[0] if xff else request.META.get("REMOTE_ADDR")
+    
+# ======================================================================
+# Logout — JSON response, with refresh token blacklist
+# ======================================================================
+
+class LogoutView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        # Optionally blacklist the refresh token if the client sends it.
+        refresh_token = request.data.get("refresh")
+        if refresh_token:
+            try:
+                RefreshToken(refresh_token).blacklist()
+            except Exception:
+                # Token already expired or blacklisted — ignore.
+                pass
+
         logout(request)
-        messages.success(request, 'Logged out successfully')
-        return redirect('login')
+        return Response(
+            {"detail": "Logged out successfully."},
+            status=status.HTTP_200_OK,
+        )
+    
+
+# ======================================================================
+# Password reset flow — unchanged except minor polish
+# ======================================================================
 
 class SendResetCodeView(APIView):
     permission_classes = [AllowAny]
-    
+
     def post(self, request):
-        email = request.data.get('email', '').strip().lower()
-        
+        email = request.data.get("email", "").strip().lower()
         if not email:
             return Response(
-                {'error': 'Email is required.'},
-                status=status.HTTP_400_BAD_REQUEST
+                {"error": "Email is required."},
+                status=status.HTTP_400_BAD_REQUEST,
             )
-        
+
         try:
-            # Check if user exists
             user = Profile.objects.get(email=email)
         except Profile.DoesNotExist:
-            # For security, don't reveal if email exists or not
             return Response(
-                {'message': 'If the email exists, a reset code has been sent.'},
-                status=status.HTTP_200_OK
+                {"message": "If the email exists, a reset code has been sent."},
+                status=status.HTTP_200_OK,
             )
-        
-        # Generate 6-digit code
-        reset_code = get_random_string(6, '0123456789')
-        
-        # Store code in Django cache with expiration (10 minutes)
+
+        reset_code = get_random_string(6, "0123456789")
         reset_data = {
-            'user_id': user.id,
-            'code': reset_code,
-            'created_at': timezone.now().isoformat(),
-            'attempts': 0  # Track verification attempts
+            "user_id": user.id,
+            "code": reset_code,
+            "created_at": timezone.now().isoformat(),
+            "attempts": 0,
         }
-        
-        cache_key = f"password_reset:{email}"
-        cache.set(cache_key, reset_data, 600)  # 10 minutes
-        
-        # Send email
+        cache.set(f"password_reset:{email}", reset_data, 600)
+
         try:
             self.send_reset_email(email, reset_code, user.first_name or user.username)
-            
-            # For development, print code to console
-            print(f"🔐 Password reset code for {email}: {reset_code}")
-            
+            if settings.DEBUG:
+                print(f"🔐 Password reset code for {email}: {reset_code}")
             return Response(
-                {'message': 'Reset code sent to your email.'},
-                status=status.HTTP_200_OK
+                {"message": "Reset code sent to your email."},
+                status=status.HTTP_200_OK,
             )
-            
         except Exception as e:
-            print(f"Email sending failed: {str(e)}")
+            print(f"Email sending failed: {e}")
             return Response(
-                {'error': 'Failed to send reset code. Please try again.'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {"error": "Failed to send reset code. Please try again."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-    
+        
     def send_reset_email(self, email, code, username):
         subject = 'Password Reset Code'
         

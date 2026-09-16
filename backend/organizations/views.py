@@ -12,8 +12,6 @@ from .permissions import IsSuperUser
 from .serializers import (
     OrganizationApprovalSerializer,
     OrganizationCreateSerializer,
-    OrganizationJoinSerializer,
-    OrganizationMembershipSerializer,
     OrganizationSearchSerializer,
     OrganizationSummarySerializer,
     _find_similar_organizations,
@@ -28,7 +26,7 @@ class OrganizationSearchView(APIView):
     APPROVED organizations — pending/rejected orgs are not joinable and
     aren't exposed here to avoid leaking who's mid-review.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = []
     throttle_classes = [OrgSearchThrottle]
     throttle_scope = "org_search"
 
@@ -128,33 +126,6 @@ class OrganizationCreateView(APIView):
         )
 
 
-class OrganizationJoinView(APIView):
-    """
-    POST /api/organizations/join/  { organization_id, role }
-    Regular member roles on an approved org auto-approve. Owner/Admin
-    requests always queue for superuser approval, and are blocked
-    outright if that seat is already filled.
-    """
-    permission_classes = [IsAuthenticated]
-    throttle_classes = [OrgJoinThrottle]
-    throttle_scope = "org_join"
-
-    def post(self, request):
-        serializer = OrganizationJoinSerializer(data=request.data, context={"request": request})
-        serializer.is_valid(raise_exception=True)
-        membership = serializer.save()
-        return Response(OrganizationMembershipSerializer(membership).data, status=status.HTTP_201_CREATED)
-
-
-class MyMembershipsView(ListAPIView):
-    """GET /api/organizations/my-memberships/ — so the frontend can show pending-approval state."""
-    permission_classes = [IsAuthenticated]
-    serializer_class = OrganizationMembershipSerializer
-
-    def get_queryset(self):
-        return OrganizationMembership.objects.filter(user=self.request.user).select_related("organization")
-
-
 # ---- Superuser-only approval queue ----
 
 class PendingOrganizationsView(ListAPIView):
@@ -192,38 +163,4 @@ class ApproveOrganizationView(APIView):
         return Response(OrganizationSummarySerializer(org).data)
 
 
-class PendingMembershipsView(ListAPIView):
-    """GET /api/organizations/pending-memberships/ — superuser queue for owner/admin requests on already-approved orgs."""
-    permission_classes = [IsSuperUser]
-    serializer_class = OrganizationMembershipSerializer
-
-    def get_queryset(self):
-        return OrganizationMembership.objects.filter(
-            status=OrganizationMembership.Status.PENDING
-        ).select_related("organization", "user").order_by("requested_at")
-
-
-class ApproveMembershipView(APIView):
-    """POST /api/organizations/memberships/<id>/review/  { action: 'approve' | 'reject', reason? }"""
-    permission_classes = [IsSuperUser]
-
-    def post(self, request, pk):
-        try:
-            membership = OrganizationMembership.objects.get(
-                pk=pk, status=OrganizationMembership.Status.PENDING
-            )
-        except OrganizationMembership.DoesNotExist:
-            return Response({"detail": "No pending membership with that id."}, status=404)
-
-        serializer = OrganizationApprovalSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        action = serializer.validated_data["action"]
-        reason = serializer.validated_data.get("reason", "")
-
-        if action == "approve":
-            membership.approve(request.user)
-        else:
-            membership.reject(request.user, reason=reason)
-
-        return Response(OrganizationMembershipSerializer(membership).data)
     
