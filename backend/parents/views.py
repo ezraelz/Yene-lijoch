@@ -10,6 +10,7 @@ from .serializers import (
     ParentSerializer,
     ParentEditSerializer,
     ParentRegisterSerializer,
+    ParentMeSerializer
 )
 from .permissions import IsParentUser
 from organizations.utils import (
@@ -141,14 +142,14 @@ class ParentMeView(APIView):
     def get_object(self, request):
         # request.user IS the Profile, so filter by it directly.
         return get_object_or_404(
-            Parent.objects.select_related("profile", "organization"),
+            Parent.objects.select_related("profile"),
             profile=request.user,
         )
 
     def get(self, request):
         parent = self.get_object(request)
         return Response(
-            ParentSerializer(parent, context={"request": request}).data,
+            ParentMeSerializer(parent, context={"request": request}).data,
             status=status.HTTP_200_OK,
         )
 

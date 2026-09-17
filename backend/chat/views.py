@@ -4,6 +4,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
+from django.shortcuts import get_object_or_404
+from django.db import transaction
 
 from .models import Conversation, Message
 from .permissions import IsConversationParticipant
@@ -37,6 +39,131 @@ class ConversationViewSet(viewsets.ReadOnlyModelViewSet):
             return qs.filter(parent=parent_profile)
 
         return qs.none()
+
+    # ------------------------------------------------------------------
+    # create-or-get a conversation with a student's parent
+    # ------------------------------------------------------------------
+    @transaction.atomic
+    def create(self, request, *args, **kwargs):
+        """
+        POST /chat/conversations/
+        Body: { "student": <student_id> }
+
+        - Teachers: creates (or returns existing) conversation with the
+          student's parent.
+        - Parents: creates (or returns existing) conversation with the
+          student's teacher.
+
+        Either role must supply the `student` they want to talk about;
+        each role is scoped to only its own students (a teacher's own
+        class, or a parent's own child).
+        """
+        user = request.user
+        teacher_profile = getattr(user, "teacher_profile", None)
+        parent_profile = getattr(user, "parent_profile", None)
+
+        if teacher_profile is None and parent_profile is None:
+            return Response(
+                {"detail": "You must be a teacher or a parent to start a conversation."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        student_id = request.data.get("student")
+        if not student_id:
+            return Response(
+                {"student": ["This field is required."]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Import lazily to avoid circular imports at module load.
+        from students.models import Student
+        student = get_object_or_404(Student, pk=student_id)
+
+        if teacher_profile is not None:
+            # Scope check: the teacher must own the student's classroom.
+            classroom = getattr(student, "classroom", None)
+            if classroom and classroom.teacher_id != teacher_profile.id:
+                return Response(
+                    {
+                        "detail": (
+                            "You can only message parents of students "
+                            "in your own classes."
+                        )
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+            # Find the parent for this student. Adjust the lookup to match
+            # your `Parent` model's relationship to `Student`.
+            parent = self._find_parent_for_student(student)
+            if parent is None:
+                return Response(
+                    {"detail": "This student has no linked parent account."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        else:
+            # Scope check: the caller must actually be one of this
+            # student's linked parents (Parent.student is M2M, so a
+            # student can have more than one — check membership, not
+            # equality against a single fetched parent).
+            if not student.parents.filter(pk=parent_profile.pk).exists():
+                return Response(
+                    {"detail": "You can only message teachers of your own children."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            parent = parent_profile
+
+            # Find the teacher for this student. Adjust the lookup to match
+            # your `Student` -> classroom -> teacher relationship.
+            teacher_profile = self._find_teacher_for_student(student)
+            if teacher_profile is None:
+                return Response(
+                    {"detail": "This student has no assigned teacher."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        conversation, created = Conversation.objects.get_or_create(
+            teacher=teacher_profile,
+            parent=parent,
+            student=student,
+        )
+
+        serializer = self.get_serializer(conversation)
+        return Response(
+            serializer.data,
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
+
+    # ------------------------------------------------------------------
+    def _find_parent_for_student(self, student):
+        """
+        Return *a* Parent profile for a given Student, or None.
+
+        `Parent.student` is a ManyToManyField(Student, related_name="parents"),
+        so a student can have more than one linked Parent (father, mother,
+        guardian). This picks one arbitrarily via `.first()` — fine for the
+        teacher-initiates-conversation flow, where any linked parent will do.
+        Do NOT use this for permission checks on the parent side; use
+        `student.parents.filter(pk=parent_profile.pk).exists()` instead,
+        since equality against a single `.first()` result can wrongly deny
+        a student's second/third parent.
+        """
+        return student.parents.first()
+
+    def _find_teacher_for_student(self, student):
+        """
+        Return the Teacher profile for a given Student, or None.
+
+        The version below assumes `Student.classroom.teacher` exists.
+        Change it if your model differs (e.g. a direct `student.teacher`
+        FK, or a many-teacher setup where you'd need to disambiguate).
+        """
+        classroom = getattr(student, "classroom", None)
+        if classroom is not None:
+            return getattr(classroom, "teacher", None)
+
+        return None
 
     @action(detail=True, methods=["get", "post"])
     def messages(self, request, pk=None):
@@ -92,3 +219,4 @@ class ConversationViewSet(viewsets.ReadOnlyModelViewSet):
             f"conversation_{conversation_id}",
             {"type": "chat.message", "message": message_data},
         )
+        

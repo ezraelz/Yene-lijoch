@@ -318,3 +318,83 @@ class ParentEditSerializer(serializers.ModelSerializer):
         return instance
 
 
+class ParentChildSerializer(serializers.ModelSerializer):
+    """Minimal child shape for the parent dashboard."""
+
+    name = serializers.CharField(source="full_name", read_only=True)
+    group_name = serializers.CharField(
+        source="classroom.name",
+        read_only=True,
+        allow_null=True,
+    )
+    classroom_id = serializers.IntegerField(
+        source="classroom.id",
+        read_only=True,
+        allow_null=True,
+    )
+    initials = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Student
+        fields = [
+            "id",
+            "name",
+            "initials",
+            "grade",
+            "age",
+            "classroom_id",
+            "group_name",
+            "status",
+        ]
+
+    def get_initials(self, obj):
+        profile = getattr(obj, "profile", None)
+        if not profile:
+            return "?"
+        first = (profile.first_name or "").strip()
+        last = (profile.last_name or "").strip()
+        a = first[:1].upper()
+        b = last[:1].upper()
+        return (a + b) or "?"
+
+
+class ParentMeSerializer(serializers.ModelSerializer):
+    full_name = serializers.CharField(read_only=True)
+    email = serializers.EmailField(source="profile.email", read_only=True)
+    contact = serializers.CharField(source="profile.contact", read_only=True)
+    profile_image = serializers.ImageField(
+        source="profile.profile_image",
+        read_only=True,
+    )
+
+    organization = serializers.SerializerMethodField()
+    children = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Parent
+        fields = [
+            "id",
+            "full_name",
+            "email",
+            "contact",
+            "profile_image",
+            "organization",
+            "children",
+        ]
+
+    def get_organization(self, obj):
+        org = getattr(obj, "organization", None)
+        if not org:
+            return None
+        return {"id": org.id, "name": getattr(org, "name", "")}
+
+    def get_children(self, obj):
+        # Adjust the lookup to match your Parent ↔ Student relationship.
+        # Assumptions below; change if your schema differs.
+        students = (
+            Student.objects
+            .filter(parents=obj)  # or `parents=obj` for M2M
+            .select_related("profile", "classroom")
+            .order_by("profile__first_name")
+        )
+        return ParentChildSerializer(students, many=True).data

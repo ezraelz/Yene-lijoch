@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import PermissionDenied
-
+from students.models import Student
 from .models import Attendance
 from .serializers import (
     AttendanceSerializer,
@@ -134,42 +134,87 @@ class AttendanceBulkCreateAPIView(APIView):
 # ======================================================================
 
 class AttendanceSummaryAPIView(APIView):
-    """GET /attendance/summary/?lesson=<id>"""
+    """GET /attendance/summary/?lesson=<id> OR ?student=<id>"""
 
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         lesson_id = request.query_params.get("lesson")
-        if not lesson_id:
-            return Response(
-                {"detail": "lesson query param is required."},
-                status=status.HTTP_400_BAD_REQUEST,
+        student_id = request.query_params.get("student")
+
+        # ----- Case 1: summary for one lesson ------------------------
+        if lesson_id:
+            lesson = get_object_or_404(
+                scope_lessons(Lesson.objects.all(), request.user),
+                pk=lesson_id,
             )
+            total = lesson.classroom.roster.count()
+            records = Attendance.objects.filter(lesson=lesson)
+            present = records.filter(status=Attendance.STATUS_PRESENT).count()
+            absent = records.filter(status=Attendance.STATUS_ABSENT).count()
+            late = records.filter(status=Attendance.STATUS_LATE).count()
+            excused = records.filter(status=Attendance.STATUS_EXCUSED).count()
 
-        lesson = get_object_or_404(
-            scope_lessons(Lesson.objects.all(), request.user),
-            pk=lesson_id,
+            data = {
+                "total": total,
+                "recorded": records.count(),
+                "unrecorded": max(0, total - records.count()),
+                "present": present,
+                "absent": absent,
+                "late": late,
+                "excused": excused,
+                "percentage": round((present / total) * 100, 1) if total else 0,
+            }
+            return Response(AttendanceSummarySerializer(data).data)
+
+        # ----- Case 2: summary for one student (all lessons) ---------
+        if student_id:
+            # Access control — parents only see their own child.
+            student = get_object_or_404(Student, pk=student_id)
+            user = request.user
+
+            if not is_superuser(user) and not is_admin(user):
+                parent = getattr(user, "parent_profile", None)
+                owns = False
+                if parent:
+                    owns = Student.objects.filter(
+                        pk=student.pk,
+                        parents=parent,       # adjust to your schema
+                    ).exists()
+                teacher = get_user_teacher(user)
+                if teacher:
+                    owns = owns or (
+                        student.classroom
+                        and student.classroom.teacher_id == teacher.id
+                    )
+                if not owns:
+                    raise PermissionDenied(
+                        "You do not have access to this student's attendance."
+                    )
+
+            records = Attendance.objects.filter(student=student)
+            total = records.count()
+            present = records.filter(status=Attendance.STATUS_PRESENT).count()
+            absent = records.filter(status=Attendance.STATUS_ABSENT).count()
+            late = records.filter(status=Attendance.STATUS_LATE).count()
+            excused = records.filter(status=Attendance.STATUS_EXCUSED).count()
+
+            data = {
+                "total": total,
+                "recorded": total,
+                "unrecorded": 0,
+                "present": present,
+                "absent": absent,
+                "late": late,
+                "excused": excused,
+                "percentage": round((present / total) * 100, 1) if total else 0,
+            }
+            return Response(AttendanceSummarySerializer(data).data)
+
+        return Response(
+            {"detail": "Either lesson or student query param is required."},
+            status=status.HTTP_400_BAD_REQUEST,
         )
-
-        total = lesson.classroom.roster.count()
-        records = Attendance.objects.filter(lesson=lesson)
-
-        present = records.filter(status=Attendance.STATUS_PRESENT).count()
-        absent = records.filter(status=Attendance.STATUS_ABSENT).count()
-        late = records.filter(status=Attendance.STATUS_LATE).count()
-        excused = records.filter(status=Attendance.STATUS_EXCUSED).count()
-
-        data = {
-            "total": total,
-            "recorded": records.count(),
-            "unrecorded": max(0, total - records.count()),
-            "present": present,
-            "absent": absent,
-            "late": late,
-            "excused": excused,
-            "percentage": round((present / total) * 100, 1) if total else 0,
-        }
-        return Response(AttendanceSummarySerializer(data).data)
 
 
 # ======================================================================

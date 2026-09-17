@@ -7,7 +7,7 @@ router = DefaultRouter()
 router.register("conversations", ConversationViewSet, basename="conversation")
 
 urlpatterns = [
-    path("chat/", include(router.urls)),
+    path("", include(router.urls)),
 ]
 
 # Resulting endpoints (once included at the project root — see
