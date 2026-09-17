@@ -11,6 +11,7 @@ from .models import Conversation, Message
 from .permissions import IsConversationParticipant
 from .serializers import ConversationSerializer, MessageSerializer
 from .utils import role_for_user
+from notifications.services import notify_user
 
 
 class ConversationViewSet(viewsets.ReadOnlyModelViewSet):
@@ -218,5 +219,21 @@ class ConversationViewSet(viewsets.ReadOnlyModelViewSet):
         async_to_sync(channel_layer.group_send)(
             f"conversation_{conversation_id}",
             {"type": "chat.message", "message": message_data},
+        )
+
+    def _notify_new_message(self, conversation, message, sender_role):
+        """Notify whichever side did NOT send the message."""
+        if sender_role == "teacher":
+            recipient_user = conversation.parent.profile.user
+        else:
+            recipient_user = conversation.teacher.profile.user
+
+        notify_user(
+            recipient=recipient_user,
+            notification_type="new_message",
+            title="New message",
+            body=message.text[:140],
+            data={"conversation_id": conversation.id, "screen": "chat"},
+            actor=message.sender,
         )
         

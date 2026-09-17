@@ -275,14 +275,14 @@ class ClassRoomAddStudentAPIView(APIView):
 
     def post(self, request, pk):
         from students.models import Student
-        from students.serializers import StudentSerializer
+        from students.serializers import StudentCreateSerializer
 
         if not is_admin(request.user):
             raise PermissionDenied("You do not have permission to modify groups.")
 
         classroom = get_object_or_404(queryset_for_user(request.user), pk=pk)
 
-        serializer = StudentSerializer(
+        serializer = StudentCreateSerializer(
             data=request.data,
             context={
                 "request": request,
@@ -296,7 +296,7 @@ class ClassRoomAddStudentAPIView(APIView):
         student = serializer.save(classroom=classroom)
 
         return Response(
-            StudentSerializer(student, context={"request": request}).data,
+            StudentCreateSerializer(student, context={"request": request}).data,
             status=status.HTTP_201_CREATED,
         )
 

@@ -134,9 +134,6 @@ class LessonCreateSerializer(serializers.ModelSerializer):
             "date_label",
             "year",           # optional; overwritten in save()
 
-            "start_time",
-            "end_time",
-
             "scripture",
             "memoryVerse",    # maps to memory_verse
             "memory_verse",
@@ -144,9 +141,6 @@ class LessonCreateSerializer(serializers.ModelSerializer):
             "objective",
             "materials", 
             "activity",
-
-            "content",
-            "objectives",
 
             "status",
             "published",
@@ -199,12 +193,6 @@ class LessonCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({
                 "start_time":
                     "Start time is required when end time is provided."
-            })
-
-        # End time must be after start time.
-        if start_time and end_time and end_time <= start_time:
-            raise serializers.ValidationError({
-                "end_time": "End time must be after start time."
             })
 
         # Prevent duplicate (classroom, year, week) when classroom is set.
@@ -270,9 +258,6 @@ class LessonEditSerializer(serializers.ModelSerializer):
             "date_label",
             "year",
 
-            "start_time",
-            "end_time",
-
             "scripture",
             "memoryVerse",
             "memory_verse",
@@ -280,9 +265,6 @@ class LessonEditSerializer(serializers.ModelSerializer):
             "objective",
             "materials", 
             "activity",
-
-            "content",
-            "objectives",
 
             "status",
             "published",
@@ -311,19 +293,6 @@ class LessonEditSerializer(serializers.ModelSerializer):
 
         # Resolve effective values (data → instance fallback).
         classroom = data.get("classroom", getattr(instance, "classroom", None))
-
-        start_time = data.get(
-            "start_time", getattr(instance, "start_time", None)
-        )
-        end_time = data.get(
-            "end_time", getattr(instance, "end_time", None)
-        )
-
-        # Time ordering.
-        if start_time and end_time and end_time <= start_time:
-            raise serializers.ValidationError({
-                "end_time": "End time must be after start time."
-            })
 
         # Duplicate (classroom, year, week) check.
         lesson_date = data.get(
