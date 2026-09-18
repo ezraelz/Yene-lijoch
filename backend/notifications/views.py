@@ -1,89 +1,69 @@
-from rest_framework import status
+from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
+from .models import Notification
+from .serializers import NotificationSerializer
 from rest_framework.views import APIView
-from rest_framework.generics import ListAPIView
+from rest_framework.response import Response
+from rest_framework import status
+from django.utils import timezone
+from django.shortcuts import get_object_or_404
 from rest_framework.pagination import PageNumberPagination
-
-from .models import Notification, PushToken
-from .serializers import NotificationSerializer, PushTokenSerializer
-
+from .selectors.notification_selector import NotificationSelector
+from .services.notification_service import NotificationService
 
 class NotificationPagination(PageNumberPagination):
-    page_size = 25
+    page_size = 20
     page_size_query_param = "page_size"
     max_page_size = 100
 
 
-class RegisterPushTokenView(APIView):
-    """
-    POST   /notifications/push-token/   { "token": "...", "platform": "ios" }
-    DELETE /notifications/push-token/   { "token": "..." }   (call on logout)
-    """
-
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request):
-        serializer = PushTokenSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        token = serializer.validated_data["token"]
-        platform = serializer.validated_data.get("platform", "")
-
-        # A token belongs to one physical device; if it was previously
-        # registered under a different account (e.g. shared device,
-        # logout/login as someone else), move it rather than erroring.
-        PushToken.objects.update_or_create(
-            token=token,
-            defaults={"user": request.user, "platform": platform},
-        )
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-    def delete(self, request):
-        token = request.data.get("token")
-        if not token:
-            return Response({"token": ["This field is required."]}, status=status.HTTP_400_BAD_REQUEST)
-        PushToken.objects.filter(token=token, user=request.user).delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-
-class NotificationListView(ListAPIView):
-    """GET /notifications/  -> paginated list, newest first, for the current user."""
-
+class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = NotificationSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated,]
     pagination_class = NotificationPagination
 
     def get_queryset(self):
-        return Notification.objects.filter(recipient=self.request.user)
+        return NotificationSelector.for_user(self.request.user)
 
-
-class UnreadCountView(APIView):
-    """GET /notifications/unread-count/ -> { "count": <int> }"""
-
+class NotificationUnreadAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        count = Notification.objects.filter(recipient=request.user, read=False).count()
-        return Response({"count": count})
+        count = NotificationSelector.unread(request.user)
+        print(count.count())
+        return Response({"count": count.count()}, status=status.HTTP_200_OK)
 
+class NotificationMarkReadAPIView(APIView):
+    permission_classes = [IsAuthenticated,]
 
-class MarkNotificationReadView(APIView):
-    """POST /notifications/{id}/mark-read/"""
+    def post(self,request,pk,):
+        notification = (
+            NotificationSelector.get_user_notification(request.user,pk,)
+        )
+        NotificationService.mark_read(request.user)
+        return Response(
+            {
+                "detail":
+                "Notification marked as read."
+            },
+            status=status.HTTP_200_OK,
+        )
 
-    permission_classes = [IsAuthenticated]
+    
+class NotificationMarkAllReadAPIView(APIView):
+    permission_classes = [IsAuthenticated,]
 
-    def post(self, request, pk):
-        updated = Notification.objects.filter(pk=pk, recipient=request.user).update(read=True)
-        if not updated:
-            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
-        return Response(status=status.HTTP_204_NO_CONTENT)
+    def post(self, request,):
+        updated = (
+            NotificationService.mark_all_read(
+                request.user
+            )
+        )
 
-
-class MarkAllNotificationsReadView(APIView):
-    """POST /notifications/mark-all-read/"""
-
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request):
-        Notification.objects.filter(recipient=request.user, read=False).update(read=True)
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response(
+            {
+                "updated": updated,
+            },
+            status=status.HTTP_200_OK,
+        )
+    

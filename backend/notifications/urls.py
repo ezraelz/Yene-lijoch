@@ -1,19 +1,42 @@
+# notifications/api/urls.py
+from django.urls import include
 from django.urls import path
-
-from .views import (
-    MarkAllNotificationsReadView,
-    MarkNotificationReadView,
-    NotificationListView,
-    RegisterPushTokenView,
-    UnreadCountView,
+from rest_framework.routers import DefaultRouter
+from notifications.views import (
+    NotificationViewSet,
+    NotificationUnreadAPIView,
+    NotificationMarkReadAPIView,
+    NotificationMarkAllReadAPIView,
 )
 
-app_name = "notifications"
+router = DefaultRouter()
+
+router.register(
+    "",
+    NotificationViewSet,
+    basename="notifications",
+)
 
 urlpatterns = [
-    path("notifications/push-token/", RegisterPushTokenView.as_view(), name="push-token"),
-    path("notifications/", NotificationListView.as_view(), name="list"),
-    path("notifications/unread-count/", UnreadCountView.as_view(), name="unread-count"),
-    path("notifications/mark-all-read/", MarkAllNotificationsReadView.as_view(), name="mark-all-read"),
-    path("notifications/<int:pk>/mark-read/", MarkNotificationReadView.as_view(), name="mark-read"),
+    # Explicit APIView routes MUST come before the router include,
+    # otherwise the router's detail route (`<pk>/`) can swallow them.
+    path(
+        "notifications/unread/",
+        NotificationUnreadAPIView.as_view(),
+        name="notifications-unread",
+    ),
+    path(
+        "notifications/mark-all-read/",
+        NotificationMarkAllReadAPIView.as_view(),
+        name="notifications-mark-all-read",
+    ),
+    path(
+        "notifications/<int:pk>/mark-read/",
+        NotificationMarkReadAPIView.as_view(),
+        name="notifications-mark-read",
+    ),
+    path(
+        "notifications/",
+        include(router.urls),
+    ),
 ]

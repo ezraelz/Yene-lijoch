@@ -6,13 +6,11 @@ from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from django.shortcuts import get_object_or_404
 from django.db import transaction
-
 from .models import Conversation, Message
 from .permissions import IsConversationParticipant
 from .serializers import ConversationSerializer, MessageSerializer
 from .utils import role_for_user
-from notifications.services import notify_user
-
+from .services.chat_notification_service import ChatNotificationService
 
 class ConversationViewSet(viewsets.ReadOnlyModelViewSet):
     """
@@ -196,6 +194,12 @@ class ConversationViewSet(viewsets.ReadOnlyModelViewSet):
 
         data = MessageSerializer(message).data
         self._broadcast(conversation.id, data)
+
+        ChatNotificationService.notify_new_message(
+            conversation=conversation,
+            message=message,
+            sender_role=role,
+        )
         return Response(data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["post"])
@@ -220,20 +224,3 @@ class ConversationViewSet(viewsets.ReadOnlyModelViewSet):
             f"conversation_{conversation_id}",
             {"type": "chat.message", "message": message_data},
         )
-
-    def _notify_new_message(self, conversation, message, sender_role):
-        """Notify whichever side did NOT send the message."""
-        if sender_role == "teacher":
-            recipient_user = conversation.parent.profile.user
-        else:
-            recipient_user = conversation.teacher.profile.user
-
-        notify_user(
-            recipient=recipient_user,
-            notification_type="new_message",
-            title="New message",
-            body=message.text[:140],
-            data={"conversation_id": conversation.id, "screen": "chat"},
-            actor=message.sender,
-        )
-        

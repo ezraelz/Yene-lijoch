@@ -13,14 +13,23 @@ from django.core.asgi import get_asgi_application
 
 from channels.routing import ProtocolTypeRouter, URLRouter  # noqa: E402
 
-from chat.middleware import JWTAuthMiddleware  # noqa: E402
-from chat.routing import websocket_urlpatterns  # noqa: E402
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings')
 
 django_asgi_app = get_asgi_application()
 
+# Import middleware after Django is ready
+from notifications.middleware import JWTAuthMiddleware
+import notifications.routing
+import chat.routing
+
 application = ProtocolTypeRouter({
     "http": django_asgi_app,
-    "websocket": JWTAuthMiddleware(URLRouter(websocket_urlpatterns)),
+
+    "websocket": JWTAuthMiddleware(
+        URLRouter(
+            notifications.routing.websocket_urlpatterns
+            + chat.routing.websocket_urlpatterns
+        )
+    ),
 })

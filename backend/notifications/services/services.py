@@ -2,7 +2,7 @@ import logging
 
 from django.contrib.auth import get_user_model
 
-from .models import Notification, PushToken
+from ..models import Notification, PushToken
 
 logger = logging.getLogger(__name__)
 
